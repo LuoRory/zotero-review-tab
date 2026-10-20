@@ -1,0 +1,19 @@
+{
+  "addons": {
+    "review-tab@local.zotero": {
+      "updates": [
+        {
+          "version": "0.2.1",
+          "update_link": "https://github.com/LuoRory/zotero-review-tab/releases/download/v0.2.1/zotero-review-tab-0.2.1.xpi",
+          "update_hash": "sha256:40d0871c75450a1eb8aedabdb6c5e329349ae6ff7d232d041558dc377ca887ec",
+          "applications": {
+            "zotero": {
+              "strict_min_version": "7.0",
+              "strict_max_version": "10.*"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
