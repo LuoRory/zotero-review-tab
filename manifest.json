@@ -1,0 +1,15 @@
+{
+  "manifest_version": 2,
+  "name": "Review Tab for Zotero",
+  "version": "0.2.1",
+  "description": "A spaced revisit tab for Zotero notes and PDF annotations.",
+  "author": "Local",
+  "applications": {
+    "zotero": {
+      "id": "review-tab@local.zotero",
+      "strict_min_version": "7.0",
+      "strict_max_version": "10.*",
+      "update_url": "https://raw.githubusercontent.com/LuoRory/zotero-review-tab/main/updates.json"
+    }
+  }
+}

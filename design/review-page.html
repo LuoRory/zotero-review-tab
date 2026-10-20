@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>回顾 · StylePro 示例</title>
+<style>
+/* ============================================================
+   设计 Token（左侧注释为对应的 Zotero 7 CSS 变量名）
+   插件中直接改用 Zotero 变量即可自动跟随亮/暗主题
+   ============================================================ */
+:root {
+  --fill-primary: #ffffff;      /* --fill-primary */
+  --fill-secondary: #f7f7f7;    /* --fill-secondary */
+  --fill-quaternary: #e9e9e9;   /* --fill-quaternary */
+  --text-primary: #1b1b1b;      /* --text-primary */
+  --text-secondary: #6a6a6a;    /* --text-secondary */
+  --text-tertiary: #9b9b9b;     /* --text-tertiary */
+  --accent-blue: #2f6fd0;       /* --accent-blue */
+  --accent-green: #2c9e5a;      /* --accent-green */
+  --border-color: #dcdcdc;
+  --card-bg: #ffffff;
+  --later-bg: rgba(241,152,55,.12);
+  --shadow-card: 0 1px 2px rgba(0,0,0,.06);
+  --shadow-modal: 0 12px 40px rgba(0,0,0,.22);
+  --radius: 6px;
+}
+[data-theme="dark"] {
+  --fill-primary: #1f1f1f;
+  --fill-secondary: #262626;
+  --fill-quaternary: #363636;
+  --text-primary: #e6e6e6;
+  --text-secondary: #a3a3a3;
+  --text-tertiary: #6f6f6f;
+  --accent-blue: #5a9bf5;
+  --accent-green: #4caf7d;
+  --border-color: #3a3a3a;
+  --card-bg: #262626;
+  --later-bg: rgba(241,152,55,.18);
+  --shadow-card: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-modal: 0 12px 40px rgba(0,0,0,.6);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  background: var(--fill-primary);
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============ 顶部栏 ============ */
+.app-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--fill-secondary);
+}
+.app-header h1 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+.header-stat {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.header-stat b { color: var(--accent-blue); font-weight: 600; }
+.header-spacer { flex: 1; }
+.icon-btn {
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.icon-btn:hover { color: var(--text-primary); border-color: var(--accent-blue); }
+
+/* ============ 主体两栏 ============ */
+.app-main { flex: 1; display: flex; min-height: 0; }
+
+/* ---- 左栏：单元列表 ---- */
+.unit-list {
+  width: 320px;
+  flex: none;
+  border-right: 1px solid var(--border-color);
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.list-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 6px 4px 2px;
+}
+.unit-card {
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: border-color .15s, transform .1s;
+}
+.unit-card:hover { border-color: var(--accent-blue); }
+.unit-card.active {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 1px var(--accent-blue);
+}
+.unit-card.is-done { opacity: .72; }
+.unit-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.type-badge {
+  flex: none;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--fill-quaternary);
+  color: var(--text-secondary);
+}
+.unit-title {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--fill-quaternary);
+  overflow: hidden;
+  margin: 6px 0 4px;
+}
+.progress > i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent-blue);
+  transition: width .35s ease;
+}
+.unit-card.is-done .progress > i { background: var(--accent-green); }
+.unit-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.unit-meta .pending { color: var(--accent-blue); font-weight: 600; }
+.unit-card.is-done .unit-meta .pending { color: var(--accent-green); }
+.unit-foot {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  display: flex;
+  gap: 10px;
+}
+
+/* ---- 右栏：单元详情 ---- */
+.unit-detail {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 28px 60px;
+}
+.detail-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 8px;
+}
+.detail-head h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.detail-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.detail-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+.btn {
+  border-radius: var(--radius);
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  transition: background .15s, border-color .15s;
+}
+.btn:hover { border-color: var(--accent-blue); }
+.btn-primary {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: #fff;
+  font-weight: 600;
+}
+.btn-primary:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+.group-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  margin: 18px 0 6px;
+  padding-left: 2px;
+}
+
+.entry {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  transition: background .15s, opacity .2s;
+}
+.entry:hover { background: var(--fill-secondary); }
+.entry .swatch {
+  width: 3px;
+  flex: none;
+  border-radius: 2px;
+  background: var(--fill-quaternary);
+}
+.entry-body { flex: 1; min-width: 0; }
+.entry-line1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-bottom: 2px;
+}
+.entry-text {
+  font-size: 12px;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+.entry-comment {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding-left: 8px;
+  border-left: 2px solid var(--fill-quaternary);
+}
+.entry-actions {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.entry:hover .entry-actions,
+.entry:focus-within .entry-actions { opacity: 1; }
+.mini-btn {
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mini-btn:hover { color: var(--text-primary); border-color: var(--accent-blue); }
+.mini-btn.ok:hover { color: #fff; background: var(--accent-green); border-color: var(--accent-green); }
+
+/* 条目状态 */
+.entry.is-done { opacity: .45; }
+.entry.is-done .entry-text { text-decoration: line-through; text-decoration-color: var(--text-tertiary); }
+.entry.is-later { background: var(--later-bg); }
+.status-flag { font-size: 10px; }
+
+/* 操作反馈动画 */
+@keyframes flashOut {
+  to { opacity: 0; transform: translateX(-8px); }
+}
+.flash-done { animation: flashOut .22s ease forwards; }
+
+/* ============ 沉浸式逐条回顾 ============ */
+.immersive {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.45);
+  backdrop-filter: blur(2px);
+}
+.immersive[hidden] { display: none; }
+.immersive-inner {
+  width: 620px;
+  max-width: 92vw;
+  background: var(--fill-primary);
+  border-radius: 12px;
+  box-shadow: var(--shadow-modal);
+  padding: 28px 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.immersive-progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.immersive-progress-row .progress { flex: 1; max-width: 320px; margin: 0; }
+.immersive-card {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 22px 24px;
+  background: var(--card-bg);
+}
+.immersive-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-bottom: 14px;
+}
+.immersive-meta .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--fill-quaternary);
+}
+.immersive-text {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+.immersive-comment {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-color);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.immersive-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+.immersive-actions .btn { padding: 8px 22px; }
+.kbd-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.kbd {
+  display: inline-block;
+  border: 1px solid var(--border-color);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-family: ui-monospace, monospace;
+  color: var(--text-secondary);
+  margin: 0 2px;
+}
+
+/* 完成态 */
+.immersive-done {
+  text-align: center;
+  padding: 40px 0 30px;
+}
+.immersive-done .check {
+  font-size: 44px;
+  line-height: 1;
+  margin-bottom: 14px;
+}
+.immersive-done h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.immersive-done p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text-tertiary);
+}
+.empty-state .icon { font-size: 36px; margin-bottom: 10px; }
+.empty-state p { font-size: 12px; margin: 0; }
+</style>
+</head>
+<body>
+
+<!-- ==================== 顶部栏 ==================== -->
+<header class="app-header">
+  <h1>回顾</h1>
+  <span class="header-stat" id="headerStat"></span>
+  <span class="header-spacer"></span>
+  <button class="icon-btn" id="themeToggle">🌙 暗色</button>
+</header>
+
+<!-- ==================== 主体 ==================== -->
+<main class="app-main">
+  <aside class="unit-list" id="unitList"></aside>
+  <section class="unit-detail" id="unitDetail"></section>
+</main>
+
+<!-- ==================== 沉浸式回顾覆盖层 ==================== -->
+<div class="immersive" id="immersive" hidden>
+  <div class="immersive-inner" id="immersiveInner"></div>
+</div>
+
+<script>
+/* ============================================================
+   模拟数据：单元 = 一篇论文 / 一段时间的书籍集合
+   entry.kind: annotation | note
+   entry.status: pending | done | later
+   ============================================================ */
+const UNITS = [
+  {
+    id: 'u1',
+    type: '论文',
+    title: 'Attention Is All You Need',
+    lastReview: '2 天前',
+    entries: [
+      { id: 'e1', kind: 'annotation', page: 3, color: '#ffd400', age: '3 天前', status: 'done',
+        text: '注意力机制的核心是让模型在处理每个位置时，能够关注序列中的所有其他位置，从而摆脱循环结构的顺序依赖。',
+        comment: '与 RNN 的顺序依赖形成对比，这是并行的关键。' },
+      { id: 'e2', kind: 'annotation', page: 3, color: '#ff6666', age: '3 天前', status: 'pending',
+        text: '作者在此处假设注意力头的数量与表示能力线性相关，但后续工作对此有争议。',
+        comment: '' },
+      { id: 'e3', kind: 'annotation', page: 5, color: '#5fb236', age: '3 天前', status: 'pending',
+        text: '位置编码采用正弦函数，使模型能够推断比训练时更长的序列。',
+        comment: '' },
+      { id: 'e4', kind: 'note', page: null, color: null, age: '2 天前', status: 'done',
+        text: '本节的实验设计值得借鉴：先在 WMT 上做基线，再用消融实验逐项拆解多头注意力、位置编码的贡献。',
+        comment: '' },
+      { id: 'e5', kind: 'annotation', page: 5, color: '#2ea8e5', age: '2 天前', status: 'pending',
+        text: '缩放点积注意力中除以 √d_k 是为了防止点积结果过大导致 softmax 梯度消失。',
+        comment: '' },
+      { id: 'e6', kind: 'annotation', page: 7, color: '#ffd400', age: '2 天前', status: 'later',
+        text: '多头注意力允许模型在不同表示子空间关注不同位置的信息。',
+        comment: '' },
+      { id: 'e7', kind: 'annotation', page: 7, color: '#a28ae5', age: '2 天前', status: 'pending',
+        text: '残差连接与层归一化的顺序（Post-LN vs Pre-LN）对训练稳定性影响很大。',
+        comment: '' },
+      { id: 'e8', kind: 'annotation', page: 9, color: '#f19837', age: '1 天前', status: 'pending',
+        text: '训练使用了大量数据增强与 dropout，但论文未详细说明超参搜索过程。',
+        comment: '' }
+    ]
+  },
+  {
+    id: 'u2',
+    type: '书籍',
+    title: '认知心理学（第 8 版）· 第 4–6 章',
+    lastReview: '5 天前',
+    entries: [
+      { id: 'f1', kind: 'annotation', page: 88, color: '#5fb236', age: '6 天前', status: 'done',
+        text: '工作记忆的容量限制约为 4±1 个组块，而非早期认为的 7±2。',
+        comment: '' },
+      { id: 'f2', kind: 'annotation', page: 92, color: '#ffd400', age: '6 天前', status: 'pending',
+        text: '组块化（chunking）是突破容量限制的核心机制，依赖长时记忆中的知识结构。',
+        comment: '' },
+      { id: 'f3', kind: 'annotation', page: 105, color: '#ff6666', age: '5 天前', status: 'pending',
+        text: '作者对“注意力瓶颈”与“资源分配”两种模型的区分，与前面章节的论述似乎有张力。',
+        comment: '需要回看第 3 章。' },
+      { id: 'f4', kind: 'note', page: null, color: null, age: '5 天前', status: 'pending',
+        text: '第 4–6 章串起来讲的是：编码 → 存储 → 提取三个阶段各自的限制与补偿机制。可以做一张流程图。',
+        comment: '' }
+    ]
+  },
+  {
+    id: 'u3',
+    type: '论文',
+    title: 'Chain-of-Thought Prompting Elicits Reasoning in LLMs',
+    lastReview: '今天',
+    entries: [
+      { id: 'g1', kind: 'annotation', page: 2, color: '#ffd400', age: '今天', status: 'done',
+        text: '思维链的关键在于让模型显式生成中间推理步骤，而非直接输出答案。',
+        comment: '' },
+      { id: 'g2', kind: 'annotation', page: 4, color: '#5fb236', age: '今天', status: 'done',
+        text: '该方法在算术、常识、符号推理任务上均有显著提升，且随模型规模增大效果更明显。',
+        comment: '' }
+    ]
+  }
+];
+
+/* ==================== 状态 ==================== */
+const state = {
+  units: JSON.parse(JSON.stringify(UNITS)),
+  activeUnitId: 'u1',
+  immersive: { open: false, unitId: null, queue: [], index: 0 }
+};
+
+/* ==================== 工具函数 ==================== */
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[c]));
+
+function getUnit(id) { return state.units.find((u) => u.id === id); }
+function pendingCount(unit) { return unit.entries.filter((e) => e.status === 'pending').length; }
+function doneCount(unit) { return unit.entries.filter((e) => e.status === 'done').length; }
+function isUnitDone(unit) { return pendingCount(unit) === 0; }
+
+/* ==================== 渲染：顶部统计 ==================== */
+function renderHeader() {
+  const activeUnits = state.units.filter((u) => !isUnitDone(u));
+  const totalPending = state.units.reduce((n, u) => n + pendingCount(u), 0);
+  $('#headerStat').innerHTML =
+    `今天待回顾 <b>${activeUnits.length}</b> 个单元 · 共 <b>${totalPending}</b> 条`;
+}
+
+/* ==================== 渲染：左栏单元列表 ==================== */
+function renderUnitList() {
+  const pendingUnits = state.units.filter((u) => !isUnitDone(u));
+  const doneUnits = state.units.filter((u) => isUnitDone(u));
+
+  const cardHtml = (u) => {
+    const total = u.entries.length;
+    const done = doneCount(u);
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    const pending = pendingCount(u);
+    const noteN = u.entries.filter((e) => e.kind === 'note').length;
+    const annoN = u.entries.filter((e) => e.kind === 'annotation').length;
+    return `
+      <div class="unit-card ${u.id === state.activeUnitId ? 'active' : ''} ${isUnitDone(u) ? 'is-done' : ''}"
+           data-unit="${u.id}">
+        <div class="unit-card-head">
+          <span class="type-badge">${esc(u.type)}</span>
+          <span class="unit-title" title="${esc(u.title)}">${esc(u.title)}</span>
+        </div>
+        <div class="progress"><i style="width:${pct}%"></i></div>
+        <div class="unit-meta">
+          <span class="pending">${isUnitDone(u) ? '✓ 已完成' : `待回顾 ${pending}`}</span>
+          <span>已回顾 ${done} / ${total}</span>
+        </div>
+        <div class="unit-foot">
+          <span>📝 ${noteN} 条笔记</span>
+          <span>✎ ${annoN} 条注释</span>
+          <span>· ${esc(u.lastReview)}</span>
+        </div>
+      </div>`;
+  };
+
+  let html = '';
+  if (pendingUnits.length) {
+    html += `<div class="list-section-label">待回顾</div>`;
+    html += pendingUnits.map(cardHtml).join('');
+  }
+  if (doneUnits.length) {
+    html += `<div class="list-section-label">已完成</div>`;
+    html += doneUnits.map(cardHtml).join('');
+  }
+  $('#unitList').innerHTML = html;
+
+  $('#unitList').querySelectorAll('.unit-card').forEach((el) => {
+    el.addEventListener('click', () => {
+      state.activeUnitId = el.dataset.unit;
+      renderAll();
+    });
+  });
+}
+
+/* ==================== 渲染：右栏详情 ==================== */
+function renderDetail() {
+  const unit = getUnit(state.activeUnitId);
+  const root = $('#unitDetail');
+  if (!unit) { root.innerHTML = ''; return; }
+
+  const pending = pendingCount(unit);
+  const done = doneCount(unit);
+  const total = unit.entries.length;
+
+  // 分组：注释按页，笔记统一放最后
+  const annotations = unit.entries.filter((e) => e.kind === 'annotation');
+  const notes = unit.entries.filter((e) => e.kind === 'note');
+  const byPage = new Map();
+  annotations.forEach((e) => {
+    if (!byPage.has(e.page)) byPage.set(e.page, []);
+    byPage.get(e.page).push(e);
+  });
+  const pages = [...byPage.keys()].sort((a, b) => a - b);
+
+  const entryHtml = (e) => {
+    const statusClass = e.status === 'done' ? 'is-done' : e.status === 'later' ? 'is-later' : '';
+    const swatchColor = e.color || 'var(--fill-quaternary)';
+    const flag = e.status === 'done'
+      ? '<span class="status-flag">✓</span>'
+      : e.status === 'later'
+        ? '<span class="status-flag">🕐</span>'
+        : '';
+    const meta = e.kind === 'annotation'
+      ? `第 ${e.page} 页 · ${esc(e.age)}`
+      : `笔记 · ${esc(e.age)}`;
+    return `
+      <div class="entry ${statusClass}" data-entry="${e.id}">
+        <div class="swatch" style="background:${swatchColor}"></div>
+        <div class="entry-body">
+          <div class="entry-line1">${meta} ${flag}</div>
+          <div class="entry-text">${esc(e.text)}</div>
+          ${e.comment ? `<div class="entry-comment">${esc(e.comment)}</div>` : ''}
+        </div>
+        <div class="entry-actions">
+          ${e.status !== 'done' ? `<button class="mini-btn ok" data-act="done" data-id="${e.id}">✓ 已回顾</button>` : ''}
+          ${e.status === 'pending' ? `<button class="mini-btn" data-act="later" data-id="${e.id}">稍后</button>` : ''}
+          ${e.kind === 'annotation' ? `<button class="mini-btn" data-act="jump" data-id="${e.id}">↗ 原文</button>` : ''}
+        </div>
+      </div>`;
+  };
+
+  let groupsHtml = '';
+  pages.forEach((p) => {
+    const list = byPage.get(p);
+    const pendingInPage = list.filter((e) => e.status === 'pending').length;
+    groupsHtml += `<div class="group-label">第 ${p} 页 · ${pendingInPage} 条待回顾</div>`;
+    groupsHtml += list.map(entryHtml).join('');
+  });
+  if (notes.length) {
+    groupsHtml += `<div class="group-label">笔记</div>`;
+    groupsHtml += notes.map(entryHtml).join('');
+  }
+
+  root.innerHTML = `
+    <div class="detail-head">
+      <div>
+        <h2>${esc(unit.title)}</h2>
+        <div class="detail-sub">待回顾 ${pending} · 已回顾 ${done} / 共 ${total} 条 · 上次回顾 ${esc(unit.lastReview)}</div>
+      </div>
+      <div class="detail-actions">
+        <button class="btn" id="btnGenNote">生成单元笔记</button>
+        <button class="btn btn-primary" id="btnStart" ${pending === 0 ? 'disabled' : ''}>开始逐条回顾</button>
+      </div>
+    </div>
+    ${groupsHtml || '<div class="empty-state"><div class="icon">✓</div><p>该单元已全部回顾完成</p></div>'}
+  `;
+
+  // 条目操作按钮
+  root.querySelectorAll('[data-act]').forEach((btn) => {
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const { act, id } = btn.dataset;
+      if (act === 'jump') {
+        alert('模拟：跳转到原文对应位置（annotationID: ' + id + '）');
+        return;
+      }
+      setStatus(unit.id, id, act === 'done' ? 'done' : 'later');
+    });
+  });
+
+  $('#btnStart').addEventListener('click', () => openImmersive(unit.id));
+  $('#btnGenNote').addEventListener('click', () => {
+    alert('模拟：把本单元待回顾/已回顾的标注汇总写入一条新笔记');
+  });
+}
+
+/* ==================== 状态变更（带局部反馈） ==================== */
+function setStatus(unitId, entryId, status) {
+  const unit = getUnit(unitId);
+  const entry = unit.entries.find((e) => e.id === entryId);
+  if (!entry) return;
+  entry.status = status;
+
+  const row = document.querySelector(`[data-entry="${entryId}"]`);
+  if (row) {
+    row.classList.add('flash-done');
+    setTimeout(renderAll, 220);
+  } else {
+    renderAll();
+  }
+}
+
+/* ==================== 沉浸式逐条回顾 ==================== */
+function openImmersive(unitId) {
+  const unit = getUnit(unitId);
+  const queue = unit.entries.filter((e) => e.status === 'pending').map((e) => e.id);
+  if (!queue.length) return;
+  state.immersive = { open: true, unitId, queue, index: 0 };
+  renderImmersive();
+  $('#immersive').hidden = false;
+}
+
+function closeImmersive() {
+  state.immersive.open = false;
+  $('#immersive').hidden = true;
+  renderAll();
+}
+
+function renderImmersive() {
+  const { unitId, queue, index } = state.immersive;
+  const unit = getUnit(unitId);
+  const inner = $('#immersiveInner');
+
+  if (index >= queue.length) {
+    // 完成态
+    inner.innerHTML = `
+      <div class="immersive-done">
+        <div class="check">✓</div>
+        <h3>本单元回顾完成</h3>
+        <p>共处理 ${queue.length} 条 · 可以继续下一个单元了</p>
+      </div>
+      <div class="immersive-actions">
+        <button class="btn btn-primary" id="btnImmersiveClose">完成</button>
+      </div>
+      <div class="kbd-hint"><span class="kbd">Esc</span> 关闭</div>`;
+    $('#btnImmersiveClose').addEventListener('click', closeImmersive);
+    return;
+  }
+
+  const entry = unit.entries.find((e) => e.id === queue[index]);
+  const pct = Math.round((index / queue.length) * 100);
+  const colorDot = entry.color || 'var(--fill-quaternary)';
+
+  inner.innerHTML = `
+    <div class="immersive-progress-row">
+      <span>本单元 ${index + 1} / ${queue.length}</span>
+      <div class="progress"><i style="width:${pct}%"></i></div>
+      <span>${pct}%</span>
+    </div>
+    <div class="immersive-card">
+      <div class="immersive-meta">
+        <span class="dot" style="background:${colorDot}"></span>
+        <span>${entry.kind === 'annotation' ? `第 ${entry.page} 页 · ${esc(entry.age)}` : `笔记 · ${esc(entry.age)}`}</span>
+      </div>
+      <div class="immersive-text">${esc(entry.text)}</div>
+      ${entry.comment ? `<div class="immersive-comment">${esc(entry.comment)}</div>` : ''}
+    </div>
+    <div class="immersive-actions">
+      <button class="btn" id="btnSkip">✗ 跳过</button>
+      <button class="btn" id="btnLater">🕐 稍后</button>
+      <button class="btn btn-primary" id="btnDone">✓ 已回顾</button>
+    </div>
+    <div class="kbd-hint">
+      <span class="kbd">Space</span> 已回顾 · <span class="kbd">S</span> 稍后 · <span class="kbd">Esc</span> 退出
+    </div>`;
+
+  $('#btnSkip').addEventListener('click', () => { state.immersive.index++; renderImmersive(); });
+  $('#btnLater').addEventListener('click', () => immersiveAct('later'));
+  $('#btnDone').addEventListener('click', () => immersiveAct('done'));
+}
+
+function immersiveAct(status) {
+  const { unitId, queue, index } = state.immersive;
+  const unit = getUnit(unitId);
+  const entry = unit.entries.find((e) => e.id === queue[index]);
+  if (entry) entry.status = status;
+  state.immersive.index++;
+  renderHeader();
+  renderUnitList();
+  renderImmersive();
+}
+
+/* ==================== 全局渲染 ==================== */
+function renderAll() {
+  renderHeader();
+  renderUnitList();
+  renderDetail();
+}
+
+/* ==================== 键盘 ==================== */
+document.addEventListener('keydown', (e) => {
+  if (!state.immersive.open) return;
+  if (e.key === 'Escape') { closeImmersive(); }
+  else if (e.key === ' ' || e.key === 'Enter') {
+    e.preventDefault();
+    if (state.immersive.index < state.immersive.queue.length) immersiveAct('done');
+  } else if (e.key === 's' || e.key === 'S') {
+    if (state.immersive.index < state.immersive.queue.length) immersiveAct('later');
+  }
+});
+
+/* ==================== 主题切换 ==================== */
+$('#themeToggle').addEventListener('click', () => {
+  const html = document.documentElement;
+  const next = html.dataset.theme === 'light' ? 'dark' : 'light';
+  html.dataset.theme = next;
+  $('#themeToggle').textContent = next === 'light' ? '🌙 暗色' : '☀️ 亮色';
+});
+
+/* ==================== 启动 ==================== */
+renderAll();
+</script>
+</body>
+</html>

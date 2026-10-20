@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>Review Tab</title>
+  <script src="preferences.js"></script>
+  <style>
+    body { font: message-box; margin: 18px; max-width: 680px; } h2 { margin: 0 0 8px; } p { color: #5a5a5a; }
+    fieldset { border: 1px solid #c9c9c9; border-radius: 6px; margin: 16px 0; padding: 12px; } label { display: flex; gap: 9px; align-items: center; margin: 10px 0; }
+    input[type=number] { width: 78px; } .help { font-size: .92em; color: #666; margin-left: 27px; }
+  </style>
+</head>
+<body>
+  <h2>Review Tab</h2>
+  <p>Review Tab scans your existing Zotero notes and PDF annotations once when first opened, then schedules explicit learning with FSRS. It only writes one separate sync-state note and never edits your source materials automatically.</p>
+  <fieldset>
+    <legend>Daily queue</legend>
+    <label><input id="enabled" type="checkbox" /> Enable Review Tab</label>
+    <label><input id="openOnStartup" type="checkbox" /> Open the Review tab whenever Zotero starts</label>
+    <label>Daily formal review limit <input id="dailyCount" type="number" min="1" max="100" /></label>
+    <label>Daily New-card maximum <input id="newCardLimit" type="number" min="1" max="30" /></label>
+    <label>Local learning-day boundary <input id="readingDayStartHour" type="number" min="0" max="23" />:00</label>
+  </fieldset>
+  <fieldset>
+    <legend>FSRS</legend>
+    <label>First review delay for newly created content <input id="firstReviewDays" type="number" min="1" max="60" /> days</label>
+    <p class="help">Initial existing content is categorized as recent New or backlog. It becomes an FSRS card only after you explicitly grade it. Parameters use stable defaults; optimization is prepared from rating history and added later.</p>
+  </fieldset>
+  <p><button id="save">Save settings</button> <button id="open">Open Review Tab</button></p>
+</body>
+</html>

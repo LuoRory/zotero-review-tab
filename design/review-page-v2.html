@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>回顾 · 数据对齐版</title>
+<style>
+/* ============================================================
+   设计 Token（左侧为 Zotero 7 变量名，迁移时直接替换）
+   本页的 data-theme 仅用于原型演示，插件中删除
+   ============================================================ */
+:root {
+  --fill-primary: #ffffff;
+  --fill-secondary: #f7f7f7;
+  --fill-quaternary: #e9e9e9;
+  --text-primary: #1b1b1b;
+  --text-secondary: #6a6a6a;
+  --text-tertiary: #9b9b9b;
+  --accent-blue: #2f6fd0;
+  --accent-green: #2c9e5a;
+  --border-color: #dcdcdc;
+  --card-bg: #ffffff;
+  --shadow-card: 0 1px 2px rgba(0,0,0,.06);
+  --shadow-modal: 0 12px 40px rgba(0,0,0,.22);
+  --radius: 8px;
+
+  --lane-due: #2f6fd0;
+  --lane-new: #2c9e5a;
+  --lane-backlog: #b9770e;
+  --rating-again: #c0392b;
+  --rating-hard: #b9770e;
+  --rating-good: #2f6fd0;
+  --rating-easy: #2c9e5a;
+}
+[data-theme="dark"] {
+  --fill-primary: #1f1f1f;
+  --fill-secondary: #262626;
+  --fill-quaternary: #363636;
+  --text-primary: #e6e6e6;
+  --text-secondary: #a3a3a3;
+  --text-tertiary: #6f6f6f;
+  --accent-blue: #5a9bf5;
+  --accent-green: #4caf7d;
+  --border-color: #3a3a3a;
+  --card-bg: #262626;
+  --shadow-card: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-modal: 0 12px 40px rgba(0,0,0,.6);
+  --lane-due: #5a9bf5;
+  --lane-new: #4caf7d;
+  --lane-backlog: #e0a84c;
+  --rating-again: #e06c5f;
+  --rating-hard: #e0a84c;
+  --rating-good: #5a9bf5;
+  --rating-easy: #4caf7d;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  background: var(--fill-primary);
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+
+/* ============ 顶部栏 ============ */
+.app-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--fill-secondary);
+}
+.app-header h1 { font-size: 13px; font-weight: 600; margin: 0 4px 0 0; }
+.header-stats { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.stat-chip {
+  display: inline-flex; align-items: baseline; gap: 4px;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; color: var(--text-secondary);
+  background: var(--fill-quaternary);
+}
+.stat-chip b { font-weight: 600; color: var(--text-primary); }
+.stat-chip.due { background: color-mix(in srgb, var(--lane-due) 14%, transparent); color: var(--lane-due); }
+.stat-chip.due b { color: var(--lane-due); }
+.stat-chip.new { background: color-mix(in srgb, var(--lane-new) 14%, transparent); color: var(--lane-new); }
+.stat-chip.new b { color: var(--lane-new); }
+.stat-chip.backlog { background: color-mix(in srgb, var(--lane-backlog) 16%, transparent); color: var(--lane-backlog); }
+.stat-chip.backlog b { color: var(--lane-backlog); }
+.stat-done { font-size: 11px; color: var(--text-tertiary); }
+.stat-done b { color: var(--accent-green); }
+.spacer { flex: 1; }
+.icon-btn {
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.icon-btn:hover { color: var(--text-primary); border-color: var(--accent-blue); }
+
+/* ============ 两栏 ============ */
+.app-main { flex: 1; display: flex; min-height: 0; }
+@media (min-width: 901px) {
+  .app-main { overflow: hidden; }
+  .unit-list { overflow-y: auto; }
+  .unit-detail { overflow-y: auto; }
+}
+
+/* ---- 左栏 ---- */
+.unit-list {
+  width: 340px;
+  flex: none;
+  border-right: 1px solid var(--border-color);
+  padding: 6px 10px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.list-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: .04em;
+  padding: 12px 4px 4px;
+}
+.unit-card {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.unit-card:hover { border-color: var(--accent-blue); }
+.unit-card.is-active {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 1px var(--accent-blue);
+}
+.unit-card.is-done { opacity: .62; }
+.unit-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.type-badge {
+  flex: none;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--fill-quaternary);
+  color: var(--text-secondary);
+}
+.unit-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.priority { flex: none; font-size: 11px; }
+.priority.p-high { color: var(--rating-hard); }
+.priority.p-core { color: var(--rating-again); }
+.unit-sub {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.unit-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  min-width: 0;
+}
+.lane-chip {
+  flex: none;
+  font-size: 10px;
+  padding: 0 6px;
+  border-radius: 3px;
+  line-height: 17px;
+}
+.lane-chip.due { color: var(--lane-due); background: color-mix(in srgb, var(--lane-due) 13%, transparent); }
+.lane-chip.new { color: var(--lane-new); background: color-mix(in srgb, var(--lane-new) 13%, transparent); }
+.lane-chip.backlog { color: var(--lane-backlog); background: color-mix(in srgb, var(--lane-backlog) 15%, transparent); }
+.lane-chip.done { color: var(--accent-green); background: color-mix(in srgb, var(--accent-green) 13%, transparent); }
+.unit-counts { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.unit-date { margin-left: auto; white-space: nowrap; }
+
+/* ---- 右栏 ---- */
+.unit-detail {
+  flex: 1;
+  min-width: 0;
+  padding: 18px 26px 64px;
+}
+.detail-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-color);
+}
+.detail-title { min-width: 0; }
+.detail-head h2 { font-size: 17px; font-weight: 600; margin: 0 0 6px; line-height: 1.35; }
+.detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.detail-actions { margin-left: auto; display: flex; gap: 8px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+
+.btn {
+  font: inherit;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  transition: border-color .15s, background .15s;
+}
+.btn:hover { border-color: var(--accent-blue); }
+.btn.primary { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost { color: var(--text-secondary); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.more { width: 100%; margin-top: 10px; }
+.link {
+  font: inherit;
+  border: 0;
+  background: none;
+  color: var(--accent-blue);
+  font-size: 11px;
+  padding: 2px 4px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.link:hover { text-decoration: underline; }
+
+/* ---- FSRS 面板 ---- */
+.fsrs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0 0;
+}
+.fsrs-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 11px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--fill-secondary);
+}
+.fsrs-cell span { font-size: 10px; color: var(--text-tertiary); }
+.fsrs-cell b { font-size: 12px; font-weight: 600; }
+.state-1 { color: var(--rating-hard); }
+.state-2 { color: var(--accent-blue); }
+.state-3 { color: var(--rating-again); }
+.fsrs-empty { grid-template-columns: 1.4fr 1fr 1fr; }
+
+/* ---- 评分 ---- */
+.grade-block {
+  margin: 16px 0 0;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--card-bg);
+}
+.section-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.section-head h3 { font-size: 12px; font-weight: 600; margin: 0; }
+.section-head .count { font-weight: 400; color: var(--text-tertiary); }
+.section-head .hint { font-size: 11px; color: var(--text-tertiary); }
+.section-head .spacer-auto { flex: 1; }
+.grade-bar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.grade {
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 8px 6px;
+  border: 1px solid var(--border-color);
+  border-top: 2px solid var(--rating-line, var(--border-color));
+  border-radius: 7px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.grade b { font-size: 12px; font-weight: 600; }
+.grade small { font-size: 10px; color: var(--text-tertiary); }
+.grade-1 { --rating-line: var(--rating-again); }
+.grade-2 { --rating-line: var(--rating-hard); }
+.grade-3 { --rating-line: var(--rating-good); }
+.grade-4 { --rating-line: var(--rating-easy); }
+.grade:hover { background: var(--fill-secondary); }
+.grade-1:hover { border-color: var(--rating-again); }
+.grade-2:hover { border-color: var(--rating-hard); }
+.grade-3:hover { border-color: var(--rating-good); }
+.grade-4:hover { border-color: var(--rating-easy); }
+.grade-note { margin: 8px 0 0; font-size: 11px; color: var(--text-tertiary); }
+.grade-note.warn { color: var(--rating-hard); }
+.grade-note-sep { margin: 0 4px; }
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 0;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent-green) 40%, var(--border-color));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent-green) 9%, transparent);
+  color: var(--accent-green);
+  font-size: 11px;
+}
+.banner .spacer-auto { flex: 1; }
+
+/* ---- 内容分区 ---- */
+.section { margin-top: 24px; }
+.note {
+  margin: 10px 0;
+  padding: 8px 0 8px 12px;
+  border-left: 3px solid var(--accent-blue);
+}
+.note-text { margin: 0; font-size: 12px; word-break: break-word; }
+.note-foot { margin-top: 5px; display: flex; gap: 8px; }
+.empty-line { margin: 10px 0; font-size: 11px; color: var(--text-tertiary); }
+
+.page-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  margin: 14px 0 2px;
+}
+.annotation {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+}
+.page-group:first-of-type .annotation:first-of-type { border-top: 0; }
+.swatch { flex: none; width: 3px; border-radius: 2px; background: var(--fill-quaternary); }
+.anno-body { flex: 1; min-width: 0; }
+.anno-meta { font-size: 10px; color: var(--text-tertiary); }
+.anno-text { margin: 2px 0 0; font-size: 12px; word-break: break-word; }
+.anno-comment {
+  margin: 5px 0 0;
+  padding-left: 8px;
+  border-left: 2px solid var(--fill-quaternary);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.annotation .link { flex: none; align-self: flex-start; white-space: nowrap; }
+
+/* ---- 沉浸式 ---- */
+.immersive {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0,0,0,.5);
+  backdrop-filter: blur(3px);
+}
+.immersive[hidden] { display: none; }
+.immersive-box {
+  width: 760px;
+  max-width: 94vw;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--fill-primary);
+  border-radius: 14px;
+  box-shadow: var(--shadow-modal);
+  padding: 18px 24px 22px;
+}
+.im-top { display: flex; align-items: center; gap: 12px; font-size: 11px; color: var(--text-secondary); }
+.im-top .progress { flex: 1; height: 4px; border-radius: 2px; background: var(--fill-quaternary); overflow: hidden; }
+.im-top .progress > i { display: block; height: 100%; background: var(--accent-blue); transition: width .25s; }
+.im-body { min-height: 230px; padding: 26px 4px 6px; }
+.im-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-tertiary); margin-bottom: 12px; }
+.im-text { margin: 0; font-size: 18px; line-height: 1.75; word-break: break-word; }
+.im-comment {
+  margin: 18px 0 0;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-color);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.im-actions { display: flex; justify-content: center; gap: 8px; margin-top: 22px; flex-wrap: wrap; }
+.im-hint { margin-top: 12px; text-align: center; font-size: 11px; color: var(--text-tertiary); }
+.im-done { text-align: center; padding: 28px 0 8px; }
+.im-check { font-size: 40px; line-height: 1; color: var(--accent-green); margin-bottom: 10px; }
+.im-done h3 { font-size: 15px; margin: 0 0 4px; }
+.im-done p { margin: 0; font-size: 12px; color: var(--text-secondary); }
+.im-grades { margin: 18px auto 0; max-width: 520px; }
+
+/* ---- Toast ---- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(8px);
+  z-index: 200;
+  max-width: 80vw;
+  padding: 8px 14px;
+  border-radius: 7px;
+  background: var(--text-primary);
+  color: var(--fill-primary);
+  font-size: 11px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s, transform .18s;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---- 响应式 ---- */
+@media (max-width: 900px) {
+  .app-header { flex-wrap: wrap; gap: 8px; }
+  .app-header .spacer { display: none; }
+  .header-stats { order: 3; flex-basis: 100%; }
+  .app-main { flex-direction: column; }
+  .unit-list {
+    width: auto;
+    flex: none;
+    max-height: 34vh;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .unit-detail { flex: none; overflow: visible; padding: 16px 18px 48px; }
+  .detail-head { flex-direction: column; }
+  .detail-actions { margin-left: 0; justify-content: flex-start; }
+  .fsrs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grade-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>回顾</h1>
+  <div class="header-stats" id="headerStats"></div>
+  <span class="spacer"></span>
+  <button class="icon-btn" id="btnSettings" type="button">设置</button>
+  <button class="icon-btn" id="themeToggle" type="button">🌙 暗色</button>
+</header>
+
+<main class="app-main">
+  <aside class="unit-list" id="unitList" aria-label="今日队列"></aside>
+  <section class="unit-detail" id="unitDetail" aria-live="polite"></section>
+</main>
+
+<div class="immersive" id="immersive" hidden>
+  <div class="immersive-box" role="dialog" aria-modal="true" aria-label="逐条浏览">
+    <div class="im-top">
+      <span id="imProgressText">1 / 1</span>
+      <div class="progress"><i id="imProgressFill" style="width:0%"></i></div>
+      <button class="icon-btn" id="imClose" type="button">Esc</button>
+    </div>
+    <div class="im-body" id="imBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ============================================================
+   模拟数据刻意使用 bootstrap.js 的真实字段名：
+   unit / fsrsCard / annotations / notes / queue / dailyStats
+   ============================================================ */
+const NOW = new Date('2026-10-18T10:00:00+08:00');
+
+const RATING = {
+  1: { name: '没记住', en: 'Again', days: 1 },
+  2: { name: '困难', en: 'Hard', days: 3 },
+  3: { name: '继续', en: 'Good', days: 10 },
+  4: { name: '容易', en: 'Easy', days: 30 }
+};
+const STATE_LABEL = ['新卡', '学习中', '复习中', '重学中'];
+const TYPE_LABEL = { highlight: '高亮', underline: '下划线', note: '便签', image: '图片', ink: '手写' };
+const SOURCE_LABEL = { due: '到期', new: '新内容', backlog: '历史重温' };
+const PRIORITY_LABEL = { normal: '普通', high: '高', core: '核心' };
+const PRIORITY_ICON = { normal: '', high: '⚑', core: '◆' };
+
+const UNITS = [
+  {
+    id: 'u1',
+    unitType: 'article',
+    title: 'Attention Is All You Need',
+    creator: 'Vaswani et al.',
+    year: '2017',
+    source: 'due',
+    lane: 'scheduled',
+    priority: 'core',
+    completedToday: false,
+    lastActivityAt: '2026-10-12T14:20:00+08:00',
+    lastReviewedAt: '2026-10-10T09:00:00+08:00',
+    fsrsCard: { state: 2, effectiveDueAt: '2026-10-18T04:00:00+08:00', stability: 18.6, difficulty: 6.1, reps: 4, lapses: 1, last_review: '2026-10-10T09:00:00+08:00' },
+    annotationTotal: 8,
+    annotations: [
+      { key: 'a1', type: 'highlight', color: '#ffd400', pageLabel: '3', text: '注意力机制让每个位置都能直接关注序列中的任意其他位置，从而摆脱循环结构的顺序依赖。', comment: '和 RNN 的顺序依赖对比，这是并行的前提。' },
+      { key: 'a2', type: 'highlight', color: '#ff6666', pageLabel: '3', text: '作者假设注意力头数量与表示能力线性相关，但后续工作对此有争议。', comment: '' },
+      { key: 'a3', type: 'highlight', color: '#5fb236', pageLabel: '5', text: '位置编码使用正弦函数，使模型可以外推到比训练更长的序列。', comment: '外推能力后来被认为是正弦编码的主要卖点。' },
+      { key: 'a4', type: 'highlight', color: '#2ea8e5', pageLabel: '5', text: '缩放点积注意力中除以 √d_k，避免点积过大导致 softmax 梯度消失。', comment: '' },
+      { key: 'a5', type: 'highlight', color: '#ffd400', pageLabel: '7', text: '多头注意力让模型在不同表示子空间关注不同位置的信息。', comment: '' },
+      { key: 'a6', type: 'underline', color: '#a28ae5', pageLabel: '7', text: 'Post-LN 与 Pre-LN 的顺序对训练稳定性影响很大。', comment: '' },
+      { key: 'a7', type: 'highlight', color: '#f19837', pageLabel: '9', text: '训练使用了大量数据增强与 dropout，但论文未给出完整的超参搜索过程。', comment: '' },
+      { key: 'a8', type: 'highlight', color: '#5fb236', pageLabel: '9', text: '消融实验逐项拆解了多头注意力、位置编码与残差连接的贡献。', comment: '' }
+    ],
+    notes: [
+      { key: 'n1', html: '<p>这节的实验设计值得借鉴：先在 WMT 上做基线，再用消融实验逐项拆解。</p>' },
+      { key: 'n2', html: '<p>可复现性存疑：训练细节和超参搜索没有完整披露。</p>' }
+    ]
+  },
+  {
+    id: 'u2',
+    unitType: 'book-session',
+    title: '认知心理学（第 8 版）',
+    creator: 'Goldstein',
+    year: '2021',
+    sessionDay: '2026-10-12',
+    pageRange: [88, 105],
+    source: 'new',
+    lane: 'new',
+    priority: 'normal',
+    completedToday: false,
+    lastActivityAt: '2026-10-15T20:10:00+08:00',
+    lastReviewedAt: null,
+    fsrsCard: null,
+    annotationTotal: 4,
+    annotations: [
+      { key: 'b1', type: 'highlight', color: '#5fb236', pageLabel: '88', text: '工作记忆的容量限制约为 4±1 个组块，而非早期认为的 7±2。', comment: '' },
+      { key: 'b2', type: 'highlight', color: '#ffd400', pageLabel: '92', text: '组块化（chunking）是突破容量限制的核心机制，依赖长时记忆中的知识结构。', comment: '' },
+      { key: 'b3', type: 'highlight', color: '#ff6666', pageLabel: '105', text: '作者对「注意力瓶颈」与「资源分配」两种模型的区分，与前面章节的论述似乎有张力。', comment: '需要回看第 3 章。' },
+      { key: 'b4', type: 'underline', color: '#2ea8e5', pageLabel: '105', text: '提取阶段依赖线索，线索缺失时再认也可能失败。', comment: '' }
+    ],
+    notes: [
+      { key: 'n3', html: '<p>第 4–6 章可以串成「编码 → 存储 → 提取」的流程图。</p>' }
+    ]
+  },
+  {
+    id: 'u3',
+    unitType: 'article',
+    title: 'Chain-of-Thought Prompting Elicits Reasoning in LLMs',
+    creator: 'Wei et al.',
+    year: '2022',
+    source: 'backlog',
+    lane: 'backlog',
+    priority: 'high',
+    completedToday: false,
+    lastActivityAt: '2026-09-20T11:00:00+08:00',
+    lastReviewedAt: '2026-08-30T09:00:00+08:00',
+    fsrsCard: null,
+    annotationTotal: 3,
+    annotations: [
+      { key: 'c1', type: 'highlight', color: '#ffd400', pageLabel: '2', text: '思维链的关键在于让模型显式生成中间推理步骤，而非直接输出答案。', comment: '' },
+      { key: 'c2', type: 'highlight', color: '#5fb236', pageLabel: '4', text: '该方法在算术、常识、符号推理任务上均有显著提升，且随模型规模增大效果更明显。', comment: '' },
+      { key: 'c3', type: 'underline', color: '#f19837', pageLabel: '6', text: '少样本示例的写法对结果影响很大，但论文没有系统比较示例设计。', comment: '' }
+    ],
+    notes: []
+  },
+  {
+    id: 'u4',
+    unitType: 'article',
+    title: 'Scaling Laws for Neural Language Models',
+    creator: 'Kaplan et al.',
+    year: '2020',
+    source: 'due',
+    lane: 'scheduled',
+    priority: 'normal',
+    completedToday: true,
+    lastGrade: 3,
+    lastActivityAt: '2026-10-18T09:30:00+08:00',
+    lastReviewedAt: '2026-10-18T09:30:00+08:00',
+    fsrsCard: { state: 2, effectiveDueAt: '2026-10-28T04:00:00+08:00', stability: 9.2, difficulty: 5.4, reps: 2, lapses: 0, last_review: '2026-10-18T09:30:00+08:00' },
+    annotationTotal: 3,
+    annotations: [
+      { key: 'd1', type: 'highlight', color: '#ffd400', pageLabel: '1', text: '损失与模型规模、数据规模、计算量之间呈现幂律关系。', comment: '' },
+      { key: 'd2', type: 'highlight', color: '#5fb236', pageLabel: '3', text: '在固定计算预算下，更大的模型比更多的数据更有效，但需要相应增加数据以避免过拟合。', comment: '' },
+      { key: 'd3', type: 'underline', color: '#ff6666', pageLabel: '4', text: '幂律拟合的外推区间有限，超出训练规模后的行为仍需验证。', comment: '' }
+    ],
+    notes: [
+      { key: 'n4', html: '<p>幂律关系在更大规模上是否成立，值得回看后续的 Chinchilla 工作。</p>' }
+    ]
+  }
+];
+
+/* ==================== 状态 ==================== */
+const state = {
+  units: JSON.parse(JSON.stringify(UNITS)),
+  selectedId: 'u1',
+  loaded: { u1: 5 },
+  regrading: false,
+  immersive: { open: false, unitId: null, index: 0, entries: [] },
+  lastFocus: null
+};
+
+/* ==================== 工具 ==================== */
+const $ = (sel) => document.querySelector(sel);
+const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+const getUnit = (id) => state.units.find((unit) => unit.id === id);
+const selected = () => getUnit(state.selectedId);
+const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+const dayDiff = (value) => Math.round((startOfDay(NOW) - startOfDay(new Date(value))) / 86400000);
+const addDays = (date, days) => { const next = new Date(date); next.setDate(next.getDate() + days); return next; };
+const fmtDate = (value) => value ? new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric' }).format(new Date(value)) : '—';
+const fmtRel = (value) => {
+  if (!value) return '未复习';
+  const diff = dayDiff(value);
+  if (diff === 0) return '今天';
+  if (diff === 1) return '昨天';
+  if (diff > 1) return `${diff} 天前`;
+  if (diff === -1) return '明天';
+  return `${Math.abs(diff)} 天后`;
+};
+const stripHTML = (html) => String(html || '')
+  .replace(/<[^>]*>/g, ' ')
+  .replace(/&nbsp;/gi, ' ')
+  .replace(/&amp;/gi, '&')
+  .replace(/&lt;/gi, '<')
+  .replace(/&gt;/gi, '>')
+  .replace(/&quot;/gi, '"')
+  .replace(/&#39;/gi, "'")
+  .replace(/\s+/g, ' ')
+  .trim();
+const visibleAnnotations = (unit) => unit.annotations.slice(0, state.loaded[unit.id] ?? unit.annotations.length);
+const entryCount = (unit) => visibleAnnotations(unit).length + unit.notes.length;
+const priorityIcon = (priority) => PRIORITY_ICON[priority] || '';
+
+function counts() {
+  const result = { due: 0, new: 0, backlog: 0, done: 0 };
+  for (const unit of state.units) {
+    if (unit.completedToday) result.done += 1;
+    else result[unit.source] += 1;
+  }
+  return result;
+}
+
+function toast(message) {
+  const element = $('#toast');
+  element.textContent = message;
+  element.classList.add('show');
+  clearTimeout(state.toastTimer);
+  state.toastTimer = setTimeout(() => element.classList.remove('show'), 2200);
+}
+
+/* ==================== 顶栏 ==================== */
+function renderHeader() {
+  const total = counts();
+  $('#headerStats').innerHTML = `
+    <span class="stat-chip due">到期 <b>${total.due}</b></span>
+    <span class="stat-chip new">新内容 <b>${total.new}</b></span>
+    <span class="stat-chip backlog">历史 <b>${total.backlog}</b></span>
+    <span class="stat-done">今日已完成 <b>${total.done}</b> / ${state.units.length}</span>`;
+}
+
+/* ==================== 左栏 ==================== */
+function cardHTML(unit) {
+  const lane = unit.completedToday ? 'done' : unit.source;
+  const dateText = unit.completedToday
+    ? '✓ 已评分'
+    : unit.fsrsCard
+      ? fmtDate(unit.fsrsCard.effectiveDueAt)
+      : `活动 ${fmtRel(unit.lastActivityAt)}`;
+  const session = unit.sessionDay ? ` · 阅读日 ${unit.sessionDay.slice(5)}` : '';
+  return `
+    <button type="button" class="unit-card ${unit.id === state.selectedId ? 'is-active' : ''} ${unit.completedToday ? 'is-done' : ''}"
+            data-unit="${unit.id}" aria-pressed="${unit.id === state.selectedId}">
+      <span class="unit-top">
+        <span class="type-badge">${unit.unitType === 'article' ? '论文' : '书籍'}</span>
+        <span class="unit-title">${esc(unit.title)}</span>
+        ${unit.priority !== 'normal' ? `<span class="priority p-${unit.priority}" title="优先级：${PRIORITY_LABEL[unit.priority]}">${priorityIcon(unit.priority)}</span>` : ''}
+      </span>
+      <span class="unit-sub">${esc(unit.creator)} · ${esc(unit.year)}${esc(session)}</span>
+      <span class="unit-foot">
+        <span class="lane-chip ${lane}">${unit.completedToday ? '已完成' : SOURCE_LABEL[unit.source]}</span>
+        <span class="unit-counts">注释 ${unit.annotationTotal} · 笔记 ${unit.notes.length}</span>
+        <span class="unit-date">${dateText}</span>
+      </span>
+    </button>`;
+}
+
+function renderList() {
+  const groups = [];
+  for (const source of ['due', 'new', 'backlog']) {
+    const items = state.units.filter((unit) => !unit.completedToday && unit.source === source);
+    if (items.length) groups.push({ label: SOURCE_LABEL[source], items });
+  }
+  const done = state.units.filter((unit) => unit.completedToday);
+  if (done.length) groups.push({ label: '今日已完成', items: done });
+
+  if (!groups.length) {
+    $('#unitList').innerHTML = '<div class="empty-line" style="padding:20px 8px">今天没有待回顾的单元。</div>';
+    return;
+  }
+
+  $('#unitList').innerHTML = groups.map((group) => `
+    <div class="list-section-label">${group.label}</div>
+    ${group.items.map(cardHTML).join('')}
+  `).join('');
+
+  $('#unitList').querySelectorAll('.unit-card').forEach((element) => {
+    element.addEventListener('click', () => {
+      state.selectedId = element.dataset.unit;
+      state.regrading = false;
+      renderAll();
+    });
+  });
+}
+
+/* ==================== 右栏 ==================== */
+function fsrsPanel(unit) {
+  if (!unit.fsrsCard) {
+    return `
+      <section class="fsrs fsrs-empty" aria-label="调度状态">
+        <div class="fsrs-cell"><span>调度</span><b>尚未开始</b></div>
+        <div class="fsrs-cell"><span>最近活动</span><b>${fmtRel(unit.lastActivityAt)}</b></div>
+        <div class="fsrs-cell"><span>注释 / 笔记</span><b>${unit.annotationTotal} / ${unit.notes.length}</b></div>
+      </section>`;
+  }
+  const card = unit.fsrsCard;
+  return `
+    <section class="fsrs" aria-label="调度状态">
+      <div class="fsrs-cell"><span>调度状态</span><b class="state-${card.state}">${STATE_LABEL[card.state] || '—'}</b></div>
+      <div class="fsrs-cell"><span>下次到期</span><b>${fmtDate(card.effectiveDueAt)}</b></div>
+      <div class="fsrs-cell"><span>上次回顾</span><b>${fmtRel(unit.lastReviewedAt)}</b></div>
+      <div class="fsrs-cell"><span>稳定度</span><b>${card.stability.toFixed(1)} 天</b></div>
+      <div class="fsrs-cell"><span>难度</span><b>${card.difficulty.toFixed(1)}</b></div>
+      <div class="fsrs-cell"><span>复习 / 遗忘</span><b>${card.reps} / ${card.lapses}</b></div>
+    </section>`;
+}
+
+function gradeButtonsHTML(unit, extraClass = '') {
+  return `
+    <div class="grade-bar ${extraClass}">
+      ${[1, 2, 3, 4].map((rating) => `
+        <button type="button" class="grade grade-${rating}" data-grade="${rating}">
+          <b>${RATING[rating].name}</b>
+          ${unit.fsrsCard ? `<small>${RATING[rating].days} 天后</small>` : ''}
+        </button>`).join('')}
+    </div>`;
+}
+
+function notesHTML(unit) {
+  const items = unit.notes.length
+    ? unit.notes.map((note) => `
+        <article class="note">
+          <p class="note-text">${esc(stripHTML(note.html))}</p>
+          <div class="note-foot"><button type="button" class="link" data-note="${note.key}">打开笔记</button></div>
+        </article>`).join('')
+    : '<p class="empty-line">还没有条目笔记。新建笔记会打开 Zotero 原生编辑器。</p>';
+  return `
+    <section class="section" aria-label="笔记">
+      <div class="section-head">
+        <h3>笔记 <span class="count">${unit.notes.length}</span></h3>
+        <span class="spacer-auto"></span>
+        <button type="button" class="link" id="btnNewNote">新建笔记</button>
+      </div>
+      ${items}
+    </section>`;
+}
+
+function annotationsHTML(unit) {
+  const visible = visibleAnnotations(unit);
+  const groups = [];
+  for (const annotation of visible) {
+    const label = annotation.pageLabel || '';
+    if (!groups.length || groups[groups.length - 1].label !== label) groups.push({ label, items: [] });
+    groups[groups.length - 1].items.push(annotation);
+  }
+
+  const body = visible.length
+    ? groups.map((group) => `
+        <div class="page-group">
+          <div class="page-label">${group.label ? `第 ${esc(group.label)} 页` : '未标页码'}</div>
+          ${group.items.map((annotation) => `
+            <article class="annotation">
+              <span class="swatch" style="background:${esc(annotation.color || '#d0d0d0')}"></span>
+              <div class="anno-body">
+                <div class="anno-meta">${TYPE_LABEL[annotation.type] || '注释'}</div>
+                <p class="anno-text">${esc(annotation.text)}</p>
+                ${annotation.comment ? `<p class="anno-comment">${esc(annotation.comment)}</p>` : ''}
+              </div>
+              <button type="button" class="link" data-anno="${annotation.key}">在 PDF 中打开</button>
+            </article>`).join('')}
+        </div>`).join('')
+    : '<p class="empty-line">这个单元还没有 PDF 注释。</p>';
+
+  return `
+    <section class="section" aria-label="PDF 注释">
+      <div class="section-head">
+        <h3>PDF 注释 <span class="count">${unit.annotationTotal}</span></h3>
+        <span class="hint">按原文顺序</span>
+      </div>
+      ${body}
+      ${unit.annotationTotal > visible.length ? `<button type="button" class="btn more" id="btnMore">加载更多（${visible.length} / ${unit.annotationTotal}）</button>` : ''}
+    </section>`;
+}
+
+function renderDetail() {
+  const unit = selected();
+  const root = $('#unitDetail');
+  if (!unit) { root.innerHTML = '<p class="empty-line">选择一个单元开始回顾。</p>'; return; }
+
+  const count = entryCount(unit);
+  const completedBanner = unit.completedToday && !state.regrading
+    ? `<div class="banner">
+         <span>✓ 今天已评分：${unit.lastGrade ? RATING[unit.lastGrade].name : '已评分'} · 下次回顾 ${fmtDate(unit.fsrsCard?.effectiveDueAt)}</span>
+         <span class="spacer-auto"></span>
+         <button type="button" class="link" id="btnRegrade">再评一次</button>
+       </div>`
+    : '';
+
+  const gradeBlock = unit.completedToday && !state.regrading
+    ? ''
+    : `
+      <section class="grade-block" aria-label="评分">
+        <div class="section-head">
+          <h3>${unit.completedToday ? '重新评分' : '这次记得怎么样？'}</h3>
+          <span class="hint">${unit.fsrsCard ? '评分决定下次到期' : '首次评分会创建 FSRS 卡'}</span>
+        </div>
+        ${gradeButtonsHTML(unit)}
+        <p class="grade-note">
+          ${unit.completedToday ? '重新评分会覆盖今天的记录。' : '评分只作用于这个单元；笔记与注释不会被修改。'}
+          <span class="grade-note-sep">·</span>
+          只想浏览？<button type="button" class="link" id="btnPractice">记录一次浏览</button>（不改变到期）
+        </p>
+      </section>`;
+
+  root.innerHTML = `
+    <div class="detail-head">
+      <div class="detail-title">
+        <h2>${esc(unit.title)}</h2>
+        <div class="detail-meta">
+          <span class="type-badge">${unit.unitType === 'article' ? '论文' : '书籍'}</span>
+          <span>${esc(unit.creator)} · ${esc(unit.year)}</span>
+          ${unit.sessionDay ? `<span>阅读日 ${esc(unit.sessionDay)}</span>` : ''}
+          ${unit.pageRange ? `<span>pp. ${unit.pageRange[0]}–${unit.pageRange[1]}</span>` : ''}
+          <span class="lane-chip ${unit.source}">${SOURCE_LABEL[unit.source]}</span>
+        </div>
+      </div>
+      <div class="detail-actions">
+        <button type="button" class="btn ghost" id="btnPriority" title="切换优先级">
+          ${priorityIcon(unit.priority) || '○'} 优先级：${PRIORITY_LABEL[unit.priority]}
+        </button>
+        <button type="button" class="btn primary" id="btnBrowse" ${count ? '' : 'disabled'}>逐条浏览 (${count})</button>
+      </div>
+    </div>
+    ${completedBanner}
+    ${fsrsPanel(unit)}
+    ${gradeBlock}
+    ${notesHTML(unit)}
+    ${annotationsHTML(unit)}
+  `;
+
+  bindDetail(unit);
+}
+
+function bindDetail(unit) {
+  const root = $('#unitDetail');
+  root.querySelector('#btnPriority')?.addEventListener('click', cyclePriority);
+  root.querySelector('#btnBrowse')?.addEventListener('click', () => openImmersive(unit.id));
+  root.querySelector('#btnNewNote')?.addEventListener('click', () => toast('模拟：newNote() → Zotero 笔记编辑器'));
+  root.querySelector('#btnRegrade')?.addEventListener('click', () => { state.regrading = true; renderDetail(); });
+  root.querySelector('#btnPractice')?.addEventListener('click', () => {
+    unit.practiceCount = (unit.practiceCount || 0) + 1;
+    toast('已记录一次浏览（practice）· 不影响 FSRS');
+  });
+  root.querySelector('#btnMore')?.addEventListener('click', () => {
+    const visible = state.loaded[unit.id] ?? unit.annotations.length;
+    state.loaded[unit.id] = Math.min(unit.annotationTotal, visible + 5);
+    renderDetail();
+  });
+  root.querySelectorAll('[data-note]').forEach((button) => {
+    button.addEventListener('click', () => toast('模拟：openNote() 打开笔记'));
+  });
+  root.querySelectorAll('[data-anno]').forEach((button) => {
+    button.addEventListener('click', () => toast('模拟：openAnnotation() 在 PDF 中定位'));
+  });
+  root.querySelectorAll('[data-grade]').forEach((button) => {
+    button.addEventListener('click', () => grade(Number(button.dataset.grade)));
+  });
+}
+
+/* ==================== 操作 ==================== */
+function cyclePriority() {
+  const unit = selected();
+  const order = ['normal', 'high', 'core'];
+  unit.priority = order[(order.indexOf(unit.priority) + 1) % order.length];
+  renderAll();
+  toast(`优先级：${PRIORITY_LABEL[unit.priority]}（模拟 setPriority）`);
+}
+
+function grade(rating) {
+  const unit = selected();
+  const choice = RATING[rating];
+  const card = unit.fsrsCard || { state: 0, stability: 1, difficulty: 5, reps: 0, lapses: 0 };
+  const stability = Math.max(0.5, Math.round((card.stability || 1) * (rating === 1 ? 0.55 : 1.35) * 10) / 10);
+  const difficulty = Math.min(10, Math.max(1, Math.round(((card.difficulty || 5) + (rating === 1 ? 0.8 : rating === 4 ? -0.5 : 0)) * 10) / 10));
+  unit.lastGrade = rating;
+  unit.completedToday = true;
+  unit.lastReviewedAt = NOW.toISOString();
+  unit.fsrsCard = Object.assign({}, card, {
+    state: rating === 1 ? 1 : 2,
+    stability,
+    difficulty,
+    reps: (card.reps || 0) + 1,
+    lapses: (card.lapses || 0) + (rating === 1 ? 1 : 0),
+    last_review: NOW.toISOString(),
+    effectiveDueAt: addDays(NOW, choice.days).toISOString()
+  });
+  state.regrading = false;
+  renderAll();
+  toast(`已记录：${choice.name}（${choice.en}）· 下次回顾 ${fmtDate(unit.fsrsCard.effectiveDueAt)}`);
+}
+
+/* ==================== 沉浸式逐条浏览 ==================== */
+function openImmersive(unitId) {
+  const unit = getUnit(unitId);
+  const entries = [
+    ...visibleAnnotations(unit).map((annotation) => ({ kind: 'annotation', ...annotation })),
+    ...unit.notes.map((note) => ({ kind: 'note', ...note }))
+  ];
+  if (!entries.length) { toast('这个单元还没有可浏览的条目'); return; }
+
+  state.lastFocus = document.activeElement;
+  state.immersive = { open: true, unitId, index: 0, entries };
+  $('#immersive').hidden = false;
+  document.body.style.overflow = 'hidden';
+  renderImmersive();
+  $('#imClose').focus();
+}
+
+function closeImmersive() {
+  state.immersive.open = false;
+  $('#immersive').hidden = true;
+  document.body.style.overflow = '';
+  state.lastFocus?.focus?.();
+  renderAll();
+}
+
+function immersiveStep(delta) {
+  const { entries, index } = state.immersive;
+  state.immersive.index = Math.max(0, Math.min(entries.length, index + delta));
+  renderImmersive();
+}
+
+function renderImmersive() {
+  const { unitId, entries, index } = state.immersive;
+  const unit = getUnit(unitId);
+  const done = index >= entries.length;
+  const displayIndex = done ? entries.length : index + 1;
+  $('#imProgressText').textContent = `${displayIndex} / ${entries.length}`;
+  $('#imProgressFill').style.width = `${Math.round((displayIndex / entries.length) * 100)}%`;
+
+  if (done) {
+    $('#imBody').innerHTML = `
+      <div class="im-done">
+        <div class="im-check">✓</div>
+        <h3>浏览完成</h3>
+        <p>共 ${entries.length} 条 · ${esc(unit.title)}</p>
+        ${unit.completedToday
+          ? '<p style="margin-top:14px">今天已经评过分了。</p>'
+          : `
+            <p style="margin-top:6px">最后一步：这次记得怎么样？</p>
+            ${gradeButtonsHTML(unit, 'im-grades')}
+            <p class="grade-note">按 1–4 也可以评分</p>`}
+        <div class="im-actions">
+          <button type="button" class="btn" id="imClose2">关闭</button>
+        </div>
+      </div>`;
+    $('#imClose2').addEventListener('click', closeImmersive);
+    $('#imBody').querySelectorAll('[data-grade]').forEach((button) => {
+      button.addEventListener('click', () => grade(Number(button.dataset.grade)));
+    });
+    return;
+  }
+
+  const entry = entries[index];
+  const isAnnotation = entry.kind === 'annotation';
+  $('#imBody').innerHTML = `
+    <div class="im-meta">
+      <span class="type-badge">${isAnnotation ? (TYPE_LABEL[entry.type] || '注释') : '笔记'}</span>
+      ${isAnnotation && entry.pageLabel ? `<span>第 ${esc(entry.pageLabel)} 页</span>` : ''}
+    </div>
+    <p class="im-text">${esc(isAnnotation ? entry.text : stripHTML(entry.html))}</p>
+    ${entry.comment ? `<p class="im-comment">${esc(entry.comment)}</p>` : ''}
+    <div class="im-actions">
+      <button type="button" class="btn" id="imPrev" ${index === 0 ? 'disabled' : ''}>← 上一条</button>
+      ${isAnnotation ? '<button type="button" class="btn ghost" id="imOpen">在 PDF 中打开</button>' : ''}
+      <button type="button" class="btn primary" id="imNext">${index === entries.length - 1 ? '完成' : '下一条 →'}</button>
+    </div>
+    <div class="im-hint">← → 切换${isAnnotation ? ' · O 打开原文' : ''} · Esc 退出</div>`;
+
+  $('#imPrev').addEventListener('click', () => immersiveStep(-1));
+  $('#imNext').addEventListener('click', () => immersiveStep(1));
+  $('#imOpen')?.addEventListener('click', () => toast('模拟：openAnnotation() 在 PDF 中定位'));
+}
+
+/* ==================== 键盘 ==================== */
+document.addEventListener('keydown', (event) => {
+  if (!state.immersive.open) return;
+  if (event.key === 'Escape') { event.preventDefault(); closeImmersive(); return; }
+
+  const { entries, index } = state.immersive;
+  const done = index >= entries.length;
+  if (done) {
+    if (/^[1-4]$/.test(event.key) && !selected().completedToday) grade(Number(event.key));
+    return;
+  }
+  if (event.key === 'ArrowRight') { event.preventDefault(); immersiveStep(1); }
+  else if (event.key === 'ArrowLeft') { event.preventDefault(); immersiveStep(-1); }
+  else if ((event.key === 'o' || event.key === 'O') && entries[index].kind === 'annotation') {
+    toast('模拟：openAnnotation() 在 PDF 中定位');
+  }
+});
+
+/* ==================== 其它 ==================== */
+$('#btnSettings').addEventListener('click', () => toast('模拟：openPreferences() 打开插件设置'));
+$('#themeToggle').addEventListener('click', () => {
+  const html = document.documentElement;
+  const next = html.dataset.theme === 'light' ? 'dark' : 'light';
+  html.dataset.theme = next;
+  $('#themeToggle').textContent = next === 'light' ? '🌙 暗色' : '☀️ 亮色';
+});
+
+function renderAll() {
+  renderHeader();
+  renderList();
+  renderDetail();
+  if (state.immersive.open) renderImmersive();
+}
+
+renderAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+# Third-party notices
+
+This project distributes the following vendored runtime dependency:
+
+- **ts-fsrs 5.4.2** — MIT License
+  - Runtime: `vendor/ts-fsrs-5.4.2.umd.js`
+  - License text: `vendor/ts-fsrs-LICENSE`
+  - Source, upstream release, and SHA-256: `vendor/ts-fsrs-PROVENANCE.md`
+
+The project MIT license applies to original Review Tab code and does not replace the third-party notice above.

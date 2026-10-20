@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>回顾</title>
+<style>
+/* ============================================================
+   三栏：单元列表 / 注释 / 笔记渲染。
+   尺寸用相对单位跟随界面缩放；颜色在插件中换成 Zotero 变量：
+   --fill-primary / --fill-secondary / --fill-tertiary / --fill-quaternary
+   --text-primary / --text-secondary / --text-tertiary
+   --accent-blue / --accent-green / --border-color
+   原型里的 data-theme 只用于演示亮/暗。
+   ============================================================ */
+:root {
+  --fill-primary: #ffffff;
+  --fill-secondary: #f4f4f6;
+  --fill-tertiary: #ededf0;
+  --fill-quaternary: #dcdce1;
+  --text-primary: #1b1b1f;
+  --text-secondary: #5c5c66;
+  --text-tertiary: #8a8a94;
+  --accent-blue: #2b6cb8;
+  --accent-green: #2c8a52;
+  --border-color: #d8d8dd;
+  --radius-sm: 3px;
+  --radius: 4px;
+  --radius-lg: 6px;
+  --gap-1: 2px;
+  --gap-2: 4px;
+  --gap-3: 8px;
+  --gap-4: 12px;
+  --gap-5: 16px;
+  --side-width: 15rem;
+  --notes-width: 19rem;
+  --hit: 1.5rem;
+}
+[data-theme="dark"] {
+  --fill-primary: #1f1f22;
+  --fill-secondary: #26262a;
+  --fill-tertiary: #2e2e33;
+  --fill-quaternary: #3a3a40;
+  --text-primary: #e4e4e8;
+  --text-secondary: #a5a5ae;
+  --text-tertiary: #75757e;
+  --accent-blue: #7fb0ea;
+  --accent-green: #74be92;
+  --border-color: #3d3d43;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font: menu;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--fill-primary);
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 1px; border-radius: var(--radius-sm); }
+
+/* ---------- 顶栏 ---------- */
+.app-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  min-height: 2.25rem;
+  padding: var(--gap-1) var(--gap-4);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--fill-secondary);
+}
+.app-header h1 { font-size: 0.875rem; font-weight: 600; margin: 0; white-space: nowrap; }
+.today-progress { display: flex; align-items: center; gap: var(--gap-2); font-size: 0.75rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.today-progress b { color: var(--text-primary); font-weight: 600; }
+.today-progress .bar { width: 6rem; height: 3px; border-radius: 2px; background: var(--fill-quaternary); overflow: hidden; }
+.today-progress .bar > i { display: block; height: 100%; background: var(--accent-green); transition: width .3s ease; }
+.header-stat { font-size: 0.75rem; color: var(--text-tertiary); white-space: nowrap; }
+.spacer { flex: 1; }
+.tool-btn {
+  border: 1px solid transparent;
+  background: none;
+  color: var(--text-secondary);
+  border-radius: var(--radius);
+  min-height: var(--hit);
+  padding: 0 var(--gap-3);
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tool-btn:hover { background: var(--fill-tertiary); color: var(--text-primary); }
+
+/* ---------- 三栏 ---------- */
+.app-main { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+
+/* 左栏：单元列表 */
+.side {
+  width: var(--side-width);
+  flex: none;
+  min-width: 11rem;
+  background: var(--fill-secondary);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.side-tabs {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--gap-4);
+  padding: var(--gap-2) var(--gap-4) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.tab {
+  border: 0;
+  background: none;
+  padding: var(--gap-2) 0 var(--gap-3);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+.tab:hover { color: var(--text-primary); }
+.tab.active { color: var(--text-primary); font-weight: 600; border-bottom-color: var(--text-primary); }
+.nav-extra { margin-left: auto; }
+.nav-extra .tool-btn { min-height: 1.25rem; padding: 0 var(--gap-2); }
+
+.all-tools { flex: none; display: flex; flex-direction: column; gap: var(--gap-3); padding: var(--gap-3) var(--gap-4); border-bottom: 1px solid var(--border-color); }
+.all-tools[hidden] { display: none; }
+.search {
+  width: 100%;
+  min-height: var(--hit);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--fill-primary);
+  padding: 0 var(--gap-3);
+  font-size: 0.75rem;
+  min-width: 0;
+}
+.search::placeholder { color: var(--text-tertiary); }
+.search:focus { outline: none; border-color: var(--accent-blue); }
+.chips { display: flex; flex-wrap: wrap; gap: var(--gap-2); }
+.chip {
+  border: 1px solid var(--border-color);
+  background: var(--fill-primary);
+  border-radius: var(--radius-sm);
+  min-height: 1.25rem;
+  padding: 0 var(--gap-3);
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.chip:hover { color: var(--text-primary); border-color: var(--text-tertiary); }
+.chip.active { border-color: var(--accent-blue); color: var(--accent-blue); background: color-mix(in srgb, var(--accent-blue) 8%, var(--fill-primary)); }
+
+.list-scroll { flex: 1; overflow-y: auto; padding: 0 0 var(--gap-5); min-height: 0; }
+.scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: var(--fill-quaternary); border-radius: 4px; }
+
+.bucket {
+  padding: var(--gap-3) var(--gap-4) var(--gap-1);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: .02em;
+}
+
+/* 单元行：无竖线。今日用圆点表示「需要回顾」 */
+.unit-card {
+  display: flex;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+.unit-card:hover { background: var(--fill-tertiary); }
+.unit-card.is-active { background: var(--accent-blue); color: #fff; }
+.unit-card.is-active:hover { background: var(--accent-blue); }
+.unit-card.is-active .unit-title { color: #fff; }
+.unit-card.is-active .unit-sub { color: rgba(255,255,255,.78); }
+.unit-body { flex: 1; min-width: 0; padding: var(--gap-2) var(--gap-4); display: flex; flex-direction: column; gap: 1px; }
+.unit-title {
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 待回顾标记：只在今日出现 */
+.todo-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: var(--gap-2);
+  border-radius: 50%;
+  background: var(--accent-blue);
+  vertical-align: middle;
+}
+.unit-card.is-active .todo-dot { background: #fff; }
+.unit-sub { display: flex; align-items: baseline; gap: var(--gap-2); font-size: 0.75rem; color: var(--text-tertiary); min-width: 0; }
+.unit-creator { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.unit-counts { flex: none; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.unit-card.is-active .unit-counts { color: rgba(255,255,255,.78); }
+.unit-card.is-muted { opacity: .45; }
+/* 完成：只降文字层级，位置与顺序不变 */
+.unit-card.is-done .unit-title { color: var(--text-tertiary); font-weight: 400; }
+.unit-card.is-done.is-active .unit-title { color: rgba(255,255,255,.9); }
+.list-empty { padding: var(--gap-5) var(--gap-4); color: var(--text-tertiary); font-size: 0.75rem; line-height: 1.6; }
+
+/* 中栏：单元详情，宽度随窗口伸缩 */
+.notes {
+  flex: 1;
+  min-width: 20rem;
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.pane-head {
+  flex: none;
+  padding: var(--gap-3) var(--gap-4) var(--gap-2);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap-2);
+}
+.pane-head h2 { font-size: 0.8125rem; font-weight: 600; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pane-head .count { font-size: 0.6875rem; color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pane-head .spacer-auto { flex: 1; }
+.notes-scroll { flex: 1; overflow-y: auto; padding: var(--gap-4) 0 3rem; min-height: 0; }
+.detail-inner { max-width: 42rem; padding: 0 var(--gap-5); }
+.detail-head h1 { font-size: 1rem; font-weight: 600; line-height: 1.35; margin: 0 0 var(--gap-2); }
+.detail-title-row { display: flex; align-items: flex-start; gap: var(--gap-2); }
+.detail-title-row h1 { flex: 1; min-width: 0; }
+.detail-title-row .icon-btn { flex: none; margin-top: -2px; }
+
+/* FSRS 反馈：详情最下方 */
+.feedback { margin-top: var(--gap-5); padding-top: var(--gap-3); border-top: 1px solid var(--border-color); }
+.grade-bar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap-2); }
+.grade {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0 var(--gap-2);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--fill-primary);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.grade b { font-weight: 500; }
+.grade:hover { border-color: var(--text-tertiary); }
+.grade.is-picked { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+.grade.is-picked b { font-weight: 600; }
+.unit-meta { display: flex; align-items: baseline; gap: var(--gap-2); flex-wrap: wrap; font-size: 0.75rem; color: var(--text-tertiary); }
+.detail-section { margin-top: var(--gap-5); }
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  padding-bottom: var(--gap-1);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--gap-2);
+  flex-wrap: wrap;
+}
+.section-head h2 { font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin: 0; }
+.section-head .count { font-size: 0.75rem; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.section-head .spacer-auto { flex: 1; }
+.page-label { padding: var(--gap-2) 0 0; font-size: 0.6875rem; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.ann {
+  display: flex;
+  gap: var(--gap-3);
+  width: calc(100% + (2 * var(--gap-3)));
+  margin: 0 calc(-1 * var(--gap-3));
+  padding: var(--gap-2) var(--gap-3);
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+.ann:hover { background: var(--fill-tertiary); }
+.ann.is-active { background: var(--fill-tertiary); }
+.ann .swatch { flex: none; width: 3px; border-radius: 1px; background: var(--fill-quaternary); margin-top: 3px; }
+.ann-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--gap-1); }
+.ann-text { margin: 0; font-size: 0.8125rem; line-height: 1.6; word-break: break-word; }
+.ann-comment { margin: 0; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5; }
+
+.note-item {
+  display: block;
+  width: calc(100% + (2 * var(--gap-3)));
+  margin: 0 calc(-1 * var(--gap-3));
+  padding: var(--gap-2) var(--gap-3);
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+.note-item:hover { background: var(--fill-tertiary); }
+.note-item.is-active { background: var(--fill-tertiary); box-shadow: inset 2px 0 0 var(--accent-blue); }
+.note-title { display: block; font-size: 0.8125rem; line-height: 1.55; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.text-btn {
+  border: 0;
+  background: none;
+  padding: 0 var(--gap-1);
+  min-height: 1.25rem;
+  font-size: 0.75rem;
+  color: var(--accent-blue);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.text-btn:hover { text-decoration: underline; }
+.text-btn:disabled { color: var(--text-tertiary); cursor: default; text-decoration: none; }
+
+/* 右栏：选中笔记时才出现，固定宽度 */
+.reader {
+  width: 26rem;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--fill-primary);
+}
+.reader-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  padding: var(--gap-3) var(--gap-5);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  min-height: 2.5rem;
+}
+.reader.is-idle .reader-head { border-bottom-color: transparent; }
+.reader-head .title { flex: 1; min-width: 0; color: var(--text-primary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reader-scroll { flex: 1; overflow-y: auto; padding: var(--gap-5) var(--gap-5) 3rem; min-height: 0; }
+.reader-inner { max-width: 42rem; }
+
+.meta-line { display: flex; align-items: center; gap: var(--gap-3); margin-top: var(--gap-3); font-size: 0.75rem; color: var(--text-secondary); flex-wrap: wrap; }
+.meta-line .status[data-kind="due"] { color: var(--accent-blue); }
+.meta-line .status[data-kind="star"], .meta-line .status[data-kind="done"] { color: var(--accent-green); }
+.meta-line .sep { color: var(--border-color); }
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: var(--hit);
+  height: var(--hit);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  font-size: 0.8125rem;
+  line-height: 1;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.icon-btn:hover { background: var(--fill-tertiary); color: var(--text-primary); }
+.icon-btn.on { color: var(--accent-green); border-color: color-mix(in srgb, var(--accent-green) 45%, transparent); }
+.icon-btn[aria-pressed="true"] { color: var(--text-primary); }
+.op-confirm {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  margin-top: var(--gap-2);
+  padding: var(--gap-2) var(--gap-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--fill-secondary);
+  font-size: 0.75rem;
+  flex-wrap: wrap;
+}
+.op-confirm[hidden] { display: none; }
+.op-confirm .spacer-auto { flex: 1; min-width: var(--gap-2); }
+.small-btn {
+  border: 1px solid var(--border-color);
+  background: var(--fill-primary);
+  border-radius: var(--radius-sm);
+  min-height: 1.25rem;
+  padding: 0 var(--gap-3);
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.small-btn:hover { border-color: var(--text-tertiary); }
+.small-btn.danger { color: var(--accent-blue); border-color: var(--accent-blue); }
+
+.next-unit { display: flex; align-items: center; gap: var(--gap-3); margin-top: var(--gap-5); padding-top: var(--gap-3); border-top: 1px solid var(--border-color); font-size: 0.75rem; color: var(--text-tertiary); flex-wrap: wrap; }
+.next-unit .name { flex: 1; min-width: 6rem; color: var(--text-primary); font-size: 0.8125rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn {
+  border: 1px solid var(--border-color);
+  background: var(--fill-primary);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+  min-height: 1.5rem;
+  padding: 0 var(--gap-4);
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--text-tertiary); }
+.btn.primary { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+.btn.primary:hover { filter: brightness(1.06); }
+.empty-line { margin: 0; font-size: 0.75rem; color: var(--text-tertiary); line-height: 1.6; }
+
+/* 渲染后的笔记内容：跟随界面字号，但保留标题层级 */
+.note-render { font-size: 0.8125rem; line-height: 1.7; color: var(--text-primary); word-break: break-word; }
+.note-render > :first-child { margin-top: 0; }
+.note-render p, .note-render blockquote, .note-render ul, .note-render ol, .note-render pre { margin: 0 0 var(--gap-3); }
+.note-render h1 { font-size: 1.0625rem; margin: var(--gap-4) 0 var(--gap-2); }
+.note-render h2 { font-size: 0.9375rem; margin: var(--gap-4) 0 var(--gap-2); }
+.note-render h3, .note-render h4 { font-size: 0.8125rem; margin: var(--gap-3) 0 var(--gap-1); }
+.note-render ul, .note-render ol { padding-left: 1.25rem; }
+.note-render li { margin: 0 0 var(--gap-1); }
+.note-render blockquote { padding-left: var(--gap-3); border-left: 2px solid var(--fill-quaternary); color: var(--text-secondary); }
+.note-render pre { background: var(--fill-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: var(--gap-3); overflow-x: auto; }
+.note-render code { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 0.75rem; }
+.note-render a { color: var(--accent-blue); }
+.note-render img { max-width: 100%; height: auto; border-radius: var(--radius); }
+.note-render table { width: 100%; border-collapse: collapse; margin: 0 0 var(--gap-3); }
+.note-render th, .note-render td { border: 1px solid var(--border-color); padding: var(--gap-1) var(--gap-2); text-align: left; vertical-align: top; }
+.note-render hr { border: 0; border-top: 1px solid var(--border-color); margin: var(--gap-4) 0; }
+.note-render .annotation { border-left: 2px solid var(--fill-quaternary); padding-left: var(--gap-3); margin: 0 0 var(--gap-3); color: var(--text-secondary); }
+
+.reader-actions { display: flex; align-items: center; gap: var(--gap-3); margin-top: var(--gap-5); padding-top: var(--gap-3); border-top: 1px solid var(--border-color); flex-wrap: wrap; }
+.reader-actions .spacer-auto { flex: 1; }
+
+/* 沉浸层（逐条浏览，保留） */
+.immersive { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: var(--gap-5); background: rgba(0,0,0,.35); }
+.immersive[hidden] { display: none; }
+.immersive-box {
+  width: 40rem;
+  max-width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--fill-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 34px rgba(0,0,0,.22);
+  padding: var(--gap-4) var(--gap-5) var(--gap-5);
+}
+.im-top { display: flex; align-items: center; gap: var(--gap-3); font-size: 0.75rem; color: var(--text-tertiary); }
+.im-top .progress { flex: 1; height: 3px; border-radius: 2px; background: var(--fill-quaternary); overflow: hidden; }
+.im-top .progress > i { display: block; height: 100%; background: var(--accent-blue); transition: width .25s; }
+.im-body { min-height: 10rem; padding: var(--gap-5) 0 0; }
+.im-meta { display: flex; align-items: center; gap: var(--gap-2); margin-bottom: var(--gap-3); font-size: 0.6875rem; color: var(--text-tertiary); }
+.im-text { margin: 0; font-size: 0.9375rem; line-height: 1.7; color: var(--text-primary); word-break: break-word; }
+.im-comment { margin: var(--gap-4) 0 0; padding-top: var(--gap-3); border-top: 1px solid var(--border-color); font-size: 0.8125rem; color: var(--text-secondary); }
+.im-actions { display: flex; justify-content: center; gap: var(--gap-2); margin-top: var(--gap-5); flex-wrap: wrap; }
+.im-hint { margin-top: var(--gap-3); text-align: center; font-size: 0.6875rem; color: var(--text-tertiary); }
+.im-done { text-align: center; padding: var(--gap-5) 0 0; }
+.im-done .check { font-size: 1.5rem; color: var(--accent-green); line-height: 1; }
+.im-done h3 { font-size: 0.9375rem; margin: var(--gap-3) 0 var(--gap-1); }
+.im-done p { margin: 0; font-size: 0.75rem; color: var(--text-tertiary); }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: var(--gap-5);
+  transform: translateX(-50%) translateY(4px);
+  z-index: 200;
+  max-width: 80vw;
+  padding: var(--gap-2) var(--gap-4);
+  border-radius: var(--radius);
+  background: var(--text-primary);
+  color: var(--fill-primary);
+  font-size: 0.75rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s, transform .18s;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- 响应：三栏 → 单列 ---------- */
+@media (max-width: 70rem) {
+  /* 右栏空闲时不占宽度，选中笔记后才展开 */
+  .reader.is-idle { display: none; }
+}
+@media (max-width: 56rem) {
+  body { overflow: auto; }
+  .app-main { flex-direction: column; overflow: visible; }
+  .side { width: auto; min-width: 0; border-right: 0; border-bottom: 1px solid var(--border-color); max-height: 32vh; }
+  .notes { width: auto; min-width: 0; border-right: 0; border-bottom: 1px solid var(--border-color); max-height: 45vh; }
+  .reader { width: auto; }
+  .reader.is-idle { display: flex; }
+  .reader-scroll { overflow: visible; padding: var(--gap-4) var(--gap-4) 3rem; }
+  .reader-inner { max-width: none; }
+  .detail-inner { padding: 0 var(--gap-4); }
+}
+@media (max-width: 30rem) {
+  .app-header { flex-wrap: wrap; row-gap: var(--gap-1); padding: var(--gap-2) var(--gap-4); }
+  .header-stat { display: none; }
+  .today-progress .bar { display: none; }
+  .immersive { padding: 0; }
+  .immersive-box { border-radius: 0; max-height: 100vh; height: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>回顾</h1>
+  <div class="today-progress" id="todayProgress"></div>
+  <span class="header-stat" id="headerStat"></span>
+  <span class="spacer"></span>
+  <button class="tool-btn" id="btnSettings" type="button">设置</button>
+  <button class="tool-btn" id="btnTheme" type="button">暗色</button>
+</header>
+
+<main class="app-main">
+  <aside class="side">
+    <div class="side-tabs" role="tablist" aria-label="视图">
+      <button type="button" role="tab" class="tab active" data-view="today" aria-selected="true">今日</button>
+      <button type="button" role="tab" class="tab" data-view="all" aria-selected="false">全部</button>
+      <span class="nav-extra">
+        <select class="tool-btn" id="sort" aria-label="排序方式" title="排序方式">
+          <option value="activity">最近活动</option>
+          <option value="due">到期临近</option>
+          <option value="size">内容量</option>
+          <option value="title">标题</option>
+        </select>
+      </span>
+    </div>
+    <div class="all-tools" id="allTools" hidden>
+      <input class="search" id="search" type="search" placeholder="搜索标题或作者" aria-label="搜索">
+      <div class="chips">
+        <button type="button" class="chip active" data-type="all">全部</button>
+        <button type="button" class="chip" data-type="article">论文</button>
+        <button type="button" class="chip" data-type="book">书籍</button>
+      </div>
+    </div>
+    <div class="list-scroll scroll-thin" id="listScroll"></div>
+  </aside>
+
+  <section class="notes" aria-label="单元详情">
+    <div class="notes-scroll scroll-thin" id="notesScroll"></div>
+  </section>
+
+  <section class="reader is-idle" id="reader" aria-label="笔记渲染" aria-live="polite">
+    <div class="reader-head">
+      <span class="title" id="readerTitle"></span>
+      <span id="readerMeta"></span>
+    </div>
+    <div class="reader-scroll scroll-thin" id="readerScroll"></div>
+  </section>
+</main>
+
+<div class="immersive" id="immersive" hidden>
+  <div class="immersive-box" role="dialog" aria-modal="true" aria-label="逐条浏览">
+    <div class="im-top">
+      <span id="imProgress">1 / 1</span>
+      <div class="progress"><i id="imFill" style="width:0%"></i></div>
+      <button class="icon-btn" id="imClose" type="button" title="退出">✕</button>
+    </div>
+    <div class="im-body" id="imBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* 占位数据。实现时：今日 → getDashboard()，全部 → getRecentUnits()，详情 → getUnit() */
+const UNITS = [
+  {
+    id: 'u1', title: 'Attention Is All You Need', creator: 'Vaswani 等', year: '2017',
+    unitType: 'article', source: 'due', rank: 1, overdueDays: 6,
+    suspended: false,
+    lastActivityAt: '2026-10-12T14:20:00+08:00', lastReviewedAt: '2026-10-10T09:00:00+08:00',
+    annotationTotal: 8,
+    annotations: [
+      { key: 'a1', color: '#ffd400', pageLabel: '3', text: '注意力机制让每个位置都能直接关注序列中的任意其他位置，从而摆脱循环结构的顺序依赖。', comment: '和 RNN 的顺序依赖对比，这是并行的前提。' },
+      { key: 'a2', color: '#ff6666', pageLabel: '3', text: '作者假设注意力头数量与表示能力线性相关，但后续工作对此有争议。', comment: '' },
+      { key: 'a3', color: '#5fb236', pageLabel: '5', text: '位置编码使用正弦函数，使模型可以外推到比训练更长的序列。', comment: '外推能力后来被认为是正弦编码的主要卖点。' },
+      { key: 'a4', color: '#2ea8e5', pageLabel: '5', text: '缩放点积注意力中除以 √d_k，避免点积过大导致 softmax 梯度消失。', comment: '' },
+      { key: 'a5', color: '#ffd400', pageLabel: '7', text: '多头注意力让模型在不同表示子空间关注不同位置的信息。', comment: '' }
+    ],
+    notes: [
+      { key: 'n1', title: '实验设计的可迁移之处', html: '<h2>实验设计的可迁移之处</h2><p>这节的实验设计值得借鉴：先在 WMT 上做基线，再用消融实验逐项拆解。</p><ul><li><strong>多头注意力</strong>：去掉后 BLEU 明显下降，说明并行子空间确实有用。</li><li><strong>位置编码</strong>：换成可学习编码后差异不大，但外推能力变差。</li></ul><blockquote>消融实验的价值不在于证明某个组件有用，而在于说明它为什么有用。</blockquote><p>可以把这个套路用到后续读的论文上。</p>' },
+      { key: 'n2', title: '可复现性存疑', html: '<h2>可复现性存疑</h2><p>训练细节与超参搜索没有完整披露。</p><table><thead><tr><th>项目</th><th>论文是否给出</th></tr></thead><tbody><tr><td>学习率调度</td><td>部分</td></tr><tr><td>batch size</td><td>未给出</td></tr><tr><td>dropout 比例</td><td>给出</td></tr></tbody></table>' }
+    ]
+  },
+  {
+    id: 'u2', title: '认知心理学（第 8 版）', creator: 'Goldstein', year: '2021',
+    unitType: 'book-session', source: 'new', rank: 2, dayOffset: 3, pageRange: [88, 105],
+    suspended: false,
+    lastActivityAt: '2026-10-15T20:10:00+08:00', lastReviewedAt: null,
+    annotationTotal: 4,
+    annotations: [
+      { key: 'b1', color: '#5fb236', pageLabel: '88', text: '工作记忆的容量限制约为 4±1 个组块，而非早期认为的 7±2。', comment: '' },
+      { key: 'b2', color: '#ffd400', pageLabel: '92', text: '组块化（chunking）是突破容量限制的核心机制，依赖长时记忆中的知识结构。', comment: '' },
+      { key: 'b3', color: '#ff6666', pageLabel: '105', text: '作者对「注意力瓶颈」与「资源分配」两种模型的区分，与前面章节的论述似乎有张力。', comment: '需要回看第 3 章。' },
+      { key: 'b4', color: '#2ea8e5', pageLabel: '105', text: '提取阶段依赖线索，线索缺失时再认也可能失败。', comment: '' }
+    ],
+    notes: [{ key: 'n3', title: '第 4–6 章的线索', html: '<h2>第 4–6 章的线索</h2><p>编码 → 存储 → 提取，三个阶段各自的限制与补偿机制。</p><ol><li><strong>编码</strong>：注意决定进入工作记忆的内容。</li><li><strong>存储</strong>：组块化扩展容量。</li><li><strong>提取</strong>：线索决定能否再认。</li></ol>' }]
+  },
+  {
+    id: 'u3', title: 'Chain-of-Thought Prompting Elicits Reasoning in LLMs', creator: 'Wei 等', year: '2022',
+    unitType: 'article', source: 'backlog', rank: 3, dayOffset: 5,
+    suspended: false,
+    lastActivityAt: '2026-09-20T11:00:00+08:00', lastReviewedAt: '2026-08-30T09:00:00+08:00',
+    annotationTotal: 3,
+    annotations: [
+      { key: 'c1', color: '#ffd400', pageLabel: '2', text: '思维链的关键在于让模型显式生成中间推理步骤，而非直接输出答案。', comment: '' },
+      { key: 'c2', color: '#5fb236', pageLabel: '4', text: '该方法在算术、常识、符号推理任务上均有显著提升，且随模型规模增大效果更明显。', comment: '' },
+      { key: 'c3', color: '#f19837', pageLabel: '6', text: '少样本示例的写法对结果影响很大，但论文没有系统比较示例设计。', comment: '' }
+    ],
+    notes: []
+  },
+  {
+    id: 'u4', title: 'Scaling Laws for Neural Language Models', creator: 'Kaplan 等', year: '2020',
+    unitType: 'article', source: 'due', rank: 4, dayOffset: 10,
+    suspended: false,
+    lastActivityAt: '2026-10-18T09:30:00+08:00', lastReviewedAt: null,
+    annotationTotal: 3,
+    annotations: [
+      { key: 'd1', color: '#ffd400', pageLabel: '1', text: '损失与模型规模、数据规模、计算量之间呈现幂律关系。', comment: '' },
+      { key: 'd2', color: '#5fb236', pageLabel: '3', text: '在固定计算预算下，更大的模型比更多的数据更有效，但需要相应增加数据以避免过拟合。', comment: '' }
+    ],
+    notes: [{ key: 'n4', title: '与 Chinchilla 的关系', html: '<h2>与 Chinchilla 的关系</h2><p>幂律关系在更大规模上是否成立，值得回看后续工作。</p><p>Chinchilla 指出同计算预算下应更多投入数据，这与本文的结论并不完全一致。</p>' }]
+  },
+  {
+    id: 'u6', title: 'A Survey of Large Language Models', creator: 'Zhao 等', year: '2023',
+    unitType: 'article', source: 'new', rank: 5, dayOffset: 2,
+    suspended: false,
+    lastActivityAt: '2026-10-18T09:10:00+08:00', lastReviewedAt: null,
+    annotationTotal: 3,
+    annotations: [
+      { key: 'f1', color: '#ffd400', pageLabel: '4', text: '预训练、指令微调与对齐三阶段是理解大模型能力来源的通用框架。', comment: '' },
+      { key: 'f2', color: '#5fb236', pageLabel: '9', text: '评测基准之间存在明显的饱和与污染问题，单一榜单不足以说明能力。', comment: '这条今天新加的。' },
+      { key: 'f3', color: '#2ea8e5', pageLabel: '11', text: '参数量与数据量需要同步扩展，否则收益会递减。', comment: '' }
+    ],
+    notes: [{ key: 'n5', title: '「能力涌现」的另一种解释', html: '<h2>「能力涌现」的另一种解释</h2><p>能力涌现的说法可能来自评测指标设计，而不是模型本身。</p>' }]
+  },
+  {
+    id: 'u5', title: 'Deep Residual Learning for Image Recognition', creator: 'He 等', year: '2016',
+    unitType: 'article', source: 'backlog', rank: 6, dayOffset: 21,
+    suspended: true,
+    lastActivityAt: '2026-06-01T10:00:00+08:00', lastReviewedAt: '2026-07-20T09:00:00+08:00',
+    annotationTotal: 2,
+    annotations: [
+      { key: 'e1', color: '#5fb236', pageLabel: '2', text: '残差映射让深层网络更容易优化，恒等映射作为默认捷径。', comment: '' },
+      { key: 'e2', color: '#a28ae5', pageLabel: '4', text: '退化问题不是由过拟合引起，而是优化困难。', comment: '' }
+    ],
+    notes: []
+  }
+];
+
+const state = {
+  units: JSON.parse(JSON.stringify(UNITS)),
+  view: 'today', type: 'all', sort: 'activity', query: '',
+  selected: '',
+  /* 今日反馈：unitId → { rating, prev, manual }；manual 为 true 时撤销后恢复原状 */
+  feedback: new Map(),
+  activeNote: null, activeAnnotation: null, error: '',
+  notesScrollTop: 0,
+  immersive: { open: false, unitId: null, index: 0, entries: [] },
+  lastFocus: null
+};
+
+const $ = (sel) => document.querySelector(sel);
+const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const getUnit = (id) => state.units.find((unit) => unit.id === id);
+const selectedUnit = () => getUnit(state.selected);
+const stripHTML = (html) => String(html || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/\s+/g, ' ').trim();
+
+/* 笔记 HTML 来自 Zotero 笔记编辑器，渲染前移除脚本、事件属性与危险链接 */
+function sanitizeNoteHTML(html) {
+  const doc = new DOMParser().parseFromString(`<div>${String(html || '')}</div>`, 'text/html');
+  const allowed = new Set(['P', 'BR', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'PRE', 'CODE', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'DEL', 'MARK', 'A', 'IMG', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD', 'HR', 'DIV', 'SPAN', 'SUP', 'SUB', 'FIGURE', 'FIGCAPTION']);
+  const walk = (node) => {
+    for (const child of [...node.childNodes]) {
+      if (child.nodeType === 3) continue;
+      if (child.nodeType !== 1) { child.remove(); continue; }
+      if (!allowed.has(child.tagName)) { child.replaceWith(...child.childNodes); walk(node); return; }
+      for (const attr of [...child.attributes]) {
+        const name = attr.name.toLowerCase();
+        if (name.startsWith('on')) child.removeAttribute(attr.name);
+        else if (name === 'href' && /^\s*javascript:/i.test(attr.value)) child.removeAttribute(attr.name);
+      }
+      if (child.tagName === 'A') { child.setAttribute('target', '_blank'); child.setAttribute('rel', 'noopener'); }
+      walk(child);
+    }
+  };
+  const root = doc.body.firstElementChild;
+  walk(root);
+  return root.innerHTML;
+}
+
+/* 今日列表：按 FSRS 推荐顺序；暂停的单元留在列表里，只是不计入待回顾数、不自动跳转
+   列表顺序即 FSRS 推荐顺序；暂停只影响是否计入「今日 quota」 */
+const todayQueue = () => state.units.slice().sort((a, b) => a.rank - b.rank);
+const isDone = (unit) => state.feedback.has(unit.id);
+const reviewedCount = (unit) => unit.reviews || 0;
+/* 「待反馈」只计算未暂停且今日未反馈的单元 */
+const pendingToday = () => todayQueue().filter((unit) => !unit.suspended && !isDone(unit));
+/* 「下一条」= 未暂停、未反馈的单元里，排在本单元之后的第一条；本单元可以不在其中 */
+const nextUnit = (unitId) => {
+  const current = getUnit(unitId);
+  const queue = pendingToday();
+  if (!current) return queue[0] || null;
+  return queue.find((unit) => unit.rank > current.rank) || queue.find((unit) => unit.rank < current.rank) || null;
+};
+const prevUnit = (unitId) => {
+  const list = todayQueue();
+  const index = list.findIndex((unit) => unit.id === unitId);
+  return index > 0 ? list[index - 1] : null;
+};
+/* 位置计数：暂停的单元不参与，分母随暂停/恢复变化，与顶栏进度口径一致 */
+const positionOf = (unitId) => {
+  const list = todayQueue().filter((unit) => !unit.suspended);
+  const index = list.findIndex((unit) => unit.id === unitId);
+  return index < 0 ? '' : `${index + 1} / ${list.length}`;
+};
+
+/* ---------- FSRS 四档：演示用推算，正式实现由 gradeUnit 返回的下次到期统一处理 ---------- */
+const RATINGS = [
+  { value: 1, label: '没记住', key: '1' },
+  { value: 2, label: '困难', key: '2' },
+  { value: 3, label: '继续', key: '3' },
+  { value: 4, label: '容易', key: '4' }
+];
+const ratingLabel = (value) => (RATINGS.find((item) => item.value === value) || { label: '—' }).label;
+function applyRating(unit, rating) {
+  const days = Math.max(1, Math.round((unit.dayOffset ?? Math.max(1, unit.overdueDays ?? 0)) * [0.3, 0.7, 1.4, 2.4][rating - 1]));
+  unit.dayOffset = days;
+  unit.dueToday = false;
+  unit.overdueDays = 0;
+  unit.reviews = reviewedCount(unit) + 1;
+  unit.lastReviewedAt = new Date().toISOString();
+  return days;
+}
+function snapshot(unit) {
+  return {
+    rating: Number(unit.lastRating) || null,
+    dayOffset: unit.dayOffset,
+    dueToday: unit.dueToday,
+    overdueDays: unit.overdueDays,
+    reviews: reviewedCount(unit),
+    lastReviewedAt: unit.lastReviewedAt
+  };
+}
+function restore(unit, snap) {
+  unit.lastRating = snap.rating;
+  unit.dayOffset = snap.dayOffset;
+  unit.dueToday = snap.dueToday;
+  unit.overdueDays = snap.overdueDays;
+  unit.reviews = snap.reviews;
+  unit.lastReviewedAt = snap.lastReviewedAt;
+}
+
+/* ---------- 时间分隔与排序（仅「全部」使用） ---------- */
+const TODAY = new Date(2026, 9, 18);
+const dayAgo = (value) => {
+  const date = new Date(value);
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return Math.round((TODAY - start) / 86400000);
+};
+const daysUntilDue = (unit) => unit.dueToday ? 0 : Number.isFinite(unit.dayOffset) ? unit.dayOffset : Infinity;
+const SORT_FNS = {
+  activity: null,
+  due: (a, b) => daysUntilDue(a) - daysUntilDue(b),
+  size: (a, b) => (b.annotationTotal + b.notes.length) - (a.annotationTotal + a.notes.length),
+  title: (a, b) => a.title.localeCompare(b.title, 'zh-CN')
+};
+function bucketsOf(list) {
+  return [
+    { label: '今天', items: list.filter((unit) => dayAgo(unit.lastActivityAt) === 0) },
+    { label: '近三天', items: list.filter((unit) => { const d = dayAgo(unit.lastActivityAt); return d >= 1 && d <= 2; }) },
+    { label: '近七天', items: list.filter((unit) => { const d = dayAgo(unit.lastActivityAt); return d >= 3 && d <= 6; }) },
+    { label: '更早', items: list.filter((unit) => dayAgo(unit.lastActivityAt) > 6) }
+  ].filter((group) => group.items.length);
+}
+
+function allList() {
+  const query = state.query.trim().toLowerCase();
+  let list = state.units.slice();
+  if (state.type === 'article') list = list.filter((unit) => unit.unitType === 'article');
+  if (state.type === 'book') list = list.filter((unit) => unit.unitType === 'book-session');
+  if (query) list = list.filter((unit) => `${unit.title} ${unit.creator}`.toLowerCase().includes(query));
+  const sortFn = SORT_FNS[state.sort];
+  if (sortFn) list.sort(sortFn);
+  return list;
+}
+
+function toast(message) {
+  const element = $('#toast');
+  element.textContent = message;
+  element.classList.add('show');
+  clearTimeout(state.toastTimer);
+  state.toastTimer = setTimeout(() => element.classList.remove('show'), 2200);
+}
+
+/* ---------- 顶栏 ---------- */
+function renderHeader() {
+  const total = todayQueue().filter((unit) => !unit.suspended).length;
+  const done = todayQueue().filter((unit) => !unit.suspended && isDone(unit)).length;
+  const left = total - done;
+  const pct = total ? Math.round((done / total) * 100) : 100;
+  $('#todayProgress').innerHTML = `<span><b>${done}</b> / ${total}</span><span class="bar"><i style="width:${pct}%"></i></span>`;
+  $('#headerStat').textContent = left ? `剩余 ${left}` : '今天已经看完';
+}
+
+/* ---------- 左栏：单元 ---------- */
+function cardHTML(unit) {
+  const done = state.view === 'today' && isDone(unit);
+  const needsReview = state.view === 'today' && !done && !unit.suspended;
+  return `
+    <button type="button" class="unit-card ${unit.id === state.selected ? 'is-active' : ''} ${done ? 'is-done' : ''} ${unit.suspended ? 'is-muted' : ''}"
+            data-unit="${unit.id}" aria-pressed="${unit.id === state.selected}"
+            aria-label="${esc(unit.title)}${needsReview ? '，待反馈' : done ? '，今天已反馈' : ''}，注释 ${unit.annotationTotal} 条，笔记 ${unit.notes.length} 条">
+      <span class="unit-body">
+        <span class="unit-title">${needsReview ? '<span class="todo-dot" aria-hidden="true"></span>' : ''}${esc(unit.title)}</span>
+        <span class="unit-sub">
+          <span class="unit-creator">${esc(unit.creator)}</span>
+          <span class="unit-counts" title="注释 ${unit.annotationTotal} 条 · 笔记 ${unit.notes.length} 条">${unit.annotationTotal} · ${unit.notes.length}</span>
+        </span>
+      </span>
+    </button>`;
+}
+
+function renderList() {
+  const root = $('#listScroll');
+  const list = state.view === 'today' ? todayQueue() : allList();
+  if (!list.length) {
+    root.innerHTML = state.view === 'today'
+      ? '<div class="list-empty">今天没有需要回顾的内容。</div>'
+      : '<div class="list-empty">没有符合条件的论文或书籍。</div>';
+    return;
+  }
+  /* 今日：连续队列；全部：最近活动排序时按时间分段 */
+  if (state.view === 'today') root.innerHTML = list.map(cardHTML).join('');
+  else if (state.sort === 'activity') root.innerHTML = bucketsOf(list).map((group) => `<div class="bucket">${group.label}</div>${group.items.map(cardHTML).join('')}`).join('');
+  else root.innerHTML = list.map(cardHTML).join('');
+  root.querySelectorAll('.unit-card').forEach((element) => {
+    element.addEventListener('click', () => selectUnit(element.dataset.unit));
+  });
+}
+
+/* ---------- 中栏：单元详情（标题、状态、注释、笔记索引） ---------- */
+function annotationHTML(annotation) {
+  return `
+    <button type="button" class="ann ${annotation.key === state.activeAnnotation ? 'is-active' : ''}" data-annotation="${annotation.key}">
+      <span class="swatch" style="background:${esc(annotation.color || 'var(--fill-quaternary)')}" aria-hidden="true"></span>
+      <span class="ann-body">
+        <span class="ann-text">${esc(annotation.text)}</span>
+        ${annotation.comment ? `<span class="ann-comment">${esc(annotation.comment)}</span>` : ''}
+      </span>
+    </button>`;
+}
+
+function detailHTML(unit) {
+  const done = state.view === 'today' && isDone(unit);
+  const groups = [];
+  for (const annotation of unit.annotations) {
+    const label = annotation.pageLabel || '';
+    if (!groups.length || groups[groups.length - 1].label !== label) groups.push({ label, items: [] });
+    groups[groups.length - 1].items.push(annotation);
+  }
+  const annotationsHTML = groups.length
+    ? groups.map((group) => `
+        <div class="page-label">${group.label ? `第 ${esc(group.label)} 页` : '未标页码'}</div>
+        ${group.items.map(annotationHTML).join('')}`).join('')
+    : '<p class="empty-line">没有 PDF 注释。</p>';
+  const notesHTML = unit.notes.length
+    ? unit.notes.map((note) => `
+        <button type="button" class="note-item ${note.key === state.activeNote ? 'is-active' : ''}" data-note="${note.key}">
+          <span class="note-title">${esc(note.title || stripHTML(note.html).slice(0, 40))}</span>
+        </button>`).join('')
+    : '<p class="empty-line">还没有条目笔记。</p>';
+
+  return `
+    <div class="detail-head">
+      <div class="detail-title-row">
+        <h1>${esc(unit.title)}</h1>
+        <button type="button" class="icon-btn ${unit.suspended ? 'on' : ''}" id="opSuspend" aria-pressed="${unit.suspended}"
+                title="${unit.suspended ? '恢复回顾（Unsuspend）' : '暂停回顾（Suspend）'}"
+                aria-label="${unit.suspended ? '恢复回顾' : '暂停回顾'}">${unit.suspended ? '▶' : '⏸'}</button>
+      </div>
+      <div class="unit-meta">
+        <span>${esc(unit.creator)}${unit.year ? ` · ${esc(unit.year)}` : ''}</span>
+        <span aria-hidden="true">·</span>
+        <span>${unit.unitType === 'article' ? '论文' : '书籍'}</span>
+        ${unit.pageRange ? `<span aria-hidden="true">·</span><span>${unit.pageRange[0]}–${unit.pageRange[1]} 页</span>` : ''}
+      </div>
+      <div class="meta-line">${statusHTML(unit, done)}</div>
+    </div>
+
+    <section class="detail-section">
+      <div class="section-head">
+        <h2>注释</h2><span class="count">${unit.annotationTotal}</span>
+        <span class="spacer-auto"></span>
+        <button type="button" class="text-btn" id="btnBrowse">逐条浏览</button>
+      </div>
+      ${annotationsHTML}
+    </section>
+
+    <section class="detail-section">
+      <div class="section-head">
+        <h2>笔记</h2><span class="count">${unit.notes.length}</span>
+        <span class="spacer-auto"></span>
+        <button type="button" class="text-btn" id="btnNewNote">新建</button>
+      </div>
+      ${notesHTML}
+    </section>
+
+    ${state.view === 'today' ? feedbackHTML(unit) : ''}
+    ${navHTML(unit)}`;
+}
+
+/* ---------- 详情最下方：FSRS 四档反馈 ---------- */
+function feedbackHTML(unit) {
+  const entry = state.feedback.get(unit.id);
+  return `
+    <section class="detail-section feedback" aria-label="FSRS 反馈">
+      <div class="section-head">
+        <h2>这次记得怎么样</h2>
+        <span class="spacer-auto"></span>
+        <span class="count">${positionOf(unit.id)}</span>
+      </div>
+      <div class="grade-bar">
+        ${RATINGS.map((rating) => `
+          <button type="button" class="grade grade-${rating.value} ${entry && entry.rating === rating.value ? 'is-picked' : ''}"
+                  data-grade="${rating.value}" aria-pressed="${!!entry && entry.rating === rating.value}">
+            <b>${rating.label}</b>
+          </button>`).join('')}
+      </div>
+    </section>`;
+}
+
+/* ---------- 上一条 / 下一条（只读视图不显示导航） ---------- */
+function navHTML(unit) {
+  if (state.view !== 'today') return '';
+  const next = nextUnit(unit.id);
+  const prev = prevUnit(unit.id);
+  if (!next) return prev
+    ? `<div class="next-unit"><button type="button" class="btn" id="btnPrev" data-prev="${prev.id}" title="上一条">← 上一条</button></div>`
+    : '';
+  return `
+    <div class="next-unit">
+      ${prev ? `<button type="button" class="btn" id="btnPrev" data-prev="${prev.id}" title="上一条">← 上一条</button>` : ''}
+      <span class="name">${esc(next.title)}</span>
+      <button type="button" class="btn" id="btnNext" data-next="${next.id}" title="跳到下一条">下一条 →</button>
+    </div>`;
+}
+
+function renderNotesPane() {
+  const unit = selectedUnit();
+  const scroll = $('#notesScroll');
+  if (!unit) {
+    scroll.innerHTML = '<div class="list-empty">从左边选择一个单元。</div>';
+    return;
+  }
+  scroll.innerHTML = `<div class="detail-inner">${detailHTML(unit)}</div>`;
+  const top = state.notesScrollTop;
+  scroll.scrollTop = top;
+  scroll.onscroll = () => { state.notesScrollTop = scroll.scrollTop; };
+
+  $('#opSuspend')?.addEventListener('click', () => toggleSuspend(unit));
+  $('#btnBrowse')?.addEventListener('click', openImmersive);
+  $('#btnNewNote')?.addEventListener('click', () => toast('newNote() → 打开 Zotero 新建笔记'));
+  $('#btnNext')?.addEventListener('click', (event) => selectUnit(event.currentTarget.dataset.next));
+  $('#btnPrev')?.addEventListener('click', (event) => selectUnit(event.currentTarget.dataset.prev));
+  scroll.querySelectorAll('[data-grade]').forEach((element) => element.addEventListener('click', () => grade(unit, Number(element.dataset.grade))));
+  scroll.querySelectorAll('[data-annotation]').forEach((element) => element.addEventListener('click', () => openAnnotation(element.dataset.annotation)));
+  scroll.querySelectorAll('[data-note]').forEach((element) => element.addEventListener('click', () => openNote(element.dataset.note)));
+}
+
+/* ---------- 右栏：选中笔记时渲染，否则空白待命 ---------- */
+function renderReader() {
+  const unit = selectedUnit();
+  const scroll = $('#readerScroll');
+  const titleEl = $('#readerTitle');
+  const metaEl = $('#readerMeta');
+  const note = unit ? unit.notes.find((item) => item.key === state.activeNote) : null;
+
+  if (!unit || !note) {
+    titleEl.textContent = '';
+    metaEl.textContent = '';
+    scroll.innerHTML = '';
+    $('#reader').classList.add('is-idle');
+    return;
+  }
+
+  $('#reader').classList.remove('is-idle');
+  titleEl.textContent = note.title || '笔记';
+  metaEl.textContent = '笔记';
+  scroll.innerHTML = `<div class="reader-inner">
+    <div class="note-render" id="noteRender">${sanitizeNoteHTML(note.html)}</div>
+    <div class="reader-actions">
+      <button type="button" class="btn" id="btnOpenNote">在 Zotero 中编辑</button>
+    </div>
+  </div>`;
+  scroll.scrollTop = 0;
+  $('#btnOpenNote')?.addEventListener('click', () => toast('openNote() → 打开笔记编辑器'));
+}
+
+function statusHTML(unit, done) {
+  /* 「全部」视图不显示任何状态文案 */
+  if (state.view !== 'today') return '';
+  if (unit.suspended) return `<span class="status">已暂停</span>`;
+  if (done) {
+    const entry = state.feedback.get(unit.id);
+    const label = entry && entry.rating ? ratingLabel(entry.rating) : '继续';
+    return `<span class="status" data-kind="done">已反馈：${label}${unit.dayOffset ? ` · 约 ${unit.dayOffset} 天后再看` : ''}</span>`;
+  }
+  if (unit.dueToday) return `<span class="status" data-kind="due">该看了</span>`;
+  if (unit.dayOffset === undefined) return '';
+  return `<span class="status">下次大约 ${unit.dayOffset} 天后</span>`;
+}
+
+/* ---------- 操作 ---------- */
+/* 只切换选中单元，不再隐式计入回顾 */
+function selectUnit(id) {
+  state.selected = id;
+  state.activeNote = null;
+  state.activeAnnotation = null;
+  state.notesScrollTop = 0;
+  renderAll();
+}
+
+/* 点笔记：右栏渲染；中栏保持详情 */
+function openNote(key) {
+  state.activeNote = key;
+  state.activeAnnotation = null;
+  renderAll();
+}
+
+/* 点注释：只在中栏标记，右栏保持待命 */
+function openAnnotation(key) {
+  state.activeAnnotation = state.activeAnnotation === key ? null : key;
+  renderAll();
+}
+
+/* 暂停 / 恢复：对应 Suspend，从今日队列移出，不改变记忆状态 */
+function toggleSuspend(unit) {
+  unit.suspended = !unit.suspended;
+  renderAll();
+  toast(unit.suspended ? '已暂停回顾（Suspend）' : '已恢复回顾');
+}
+
+/* FSRS 反馈：同一档再点一次撤销；反馈后自动跳到下一条未反馈的单元 */
+function grade(unit, rating) {
+  const entry = state.feedback.get(unit.id);
+  if (entry && entry.rating === rating) {
+    restore(unit, entry.prev);
+    state.feedback.delete(unit.id);
+    renderAll();
+    toast('已撤销反馈');
+    return;
+  }
+  let record = entry;
+  if (!record) {
+    record = { rating: null, prev: snapshot(unit), manual: false };
+    state.feedback.set(unit.id, record);
+  }
+  if (record.rating) restore(unit, record.prev);
+  record.prev = snapshot(unit);
+  record.rating = rating;
+  record.manual = false;
+  applyRating(unit, rating);
+  const target = nextUnit(unit.id);
+  renderAll();
+  toast(`已记录：${RATINGS.find((item) => item.value === rating).label}`);
+  if (target) selectUnit(target.id);
+}
+
+/* ---------- 逐条浏览 ---------- */
+function entriesOf(unit) {
+  return [
+    ...unit.annotations.map((annotation) => ({ kind: 'annotation', ...annotation })),
+    ...unit.notes.map((note) => ({ kind: 'note', ...note }))
+  ];
+}
+
+function openImmersive() {
+  const unit = selectedUnit();
+  if (!unit) return;
+  const entries = entriesOf(unit);
+  if (!entries.length) { toast('这个单元还没有可浏览的内容'); return; }
+  state.lastFocus = document.activeElement;
+  state.immersive = { open: true, unitId: unit.id, index: 0, entries };
+  $('#immersive').hidden = false;
+  document.body.style.overflow = 'hidden';
+  renderImmersive();
+  $('#imClose').focus();
+}
+
+function closeImmersive() {
+  state.immersive.open = false;
+  $('#immersive').hidden = true;
+  document.body.style.overflow = '';
+  state.lastFocus?.focus?.();
+  renderAll();
+}
+
+function step(delta) {
+  const { entries, index } = state.immersive;
+  state.immersive.index = Math.max(0, Math.min(entries.length, index + delta));
+  renderImmersive();
+}
+
+function renderImmersive() {
+  const { unitId, entries, index } = state.immersive;
+  const unit = getUnit(unitId);
+  const done = index >= entries.length;
+  $('#imProgress').textContent = `${done ? entries.length : index + 1} / ${entries.length}`;
+  $('#imFill').style.width = `${Math.round(((done ? entries.length : index + 1) / entries.length) * 100)}%`;
+
+  if (done) {
+    const next = nextUnit(unitId) || todayQueue().find((item) => !isDone(item)) || null;
+    $('#imBody').innerHTML = `
+      <div class="im-done">
+        <div class="check" aria-hidden="true">✓</div>
+        <h3>浏览完成</h3>
+        <p>共 ${entries.length} 条 · ${esc(unit.title)}</p>
+        <div class="im-actions">
+          <button type="button" class="btn" id="imClose2">回到列表</button>
+          ${next ? `<button type="button" class="btn primary" id="imNext" data-next="${next.id}">下一个</button>` : ''}
+        </div>
+      </div>`;
+    $('#imClose2').addEventListener('click', closeImmersive);
+    $('#imNext')?.addEventListener('click', (event) => {
+      closeImmersive();
+      selectUnit(event.currentTarget.dataset.next);
+    });
+    return;
+  }
+
+  const entry = entries[index];
+  const isAnn = entry.kind === 'annotation';
+  $('#imBody').innerHTML = `
+    ${isAnn ? `<div class="im-meta">${entry.pageLabel ? `第 ${esc(entry.pageLabel)} 页` : ''}</div><p class="im-text">${esc(entry.text)}</p>${entry.comment ? `<p class="im-comment">${esc(entry.comment)}</p>` : ''}`
+      : `<div class="im-meta">笔记</div><div class="note-render">${sanitizeNoteHTML(entry.html)}</div>`}
+    <div class="im-actions">
+      <button type="button" class="btn" id="imPrev" ${index === 0 ? 'disabled' : ''}>上一条</button>
+      <button type="button" class="btn primary" id="imNextStep">${index === entries.length - 1 ? '完成' : '下一条'}</button>
+    </div>
+    <div class="im-hint">← → 切换 · Esc 退出</div>`;
+  $('#imPrev').addEventListener('click', () => step(-1));
+  $('#imNextStep').addEventListener('click', () => step(1));
+}
+
+/* ---------- 键盘 ---------- */
+document.addEventListener('keydown', (event) => {
+  if (state.immersive.open) {
+    if (event.key === 'Escape') { event.preventDefault(); closeImmersive(); return; }
+    const { entries, index } = state.immersive;
+    if (index >= entries.length) return;
+    if (event.key === 'ArrowRight') { event.preventDefault(); step(1); }
+    else if (event.key === 'ArrowLeft') { event.preventDefault(); step(-1); }
+    return;
+  }
+  /* 1–4：只在今日视图给当前单元 FSRS 反馈；「全部」是只读 */
+  if (state.view !== 'today') return;
+  const unit = selectedUnit();
+  if (!unit || unit.suspended) return;
+  const active = document.activeElement;
+  if (active && (active.tagName === 'INPUT' || active.tagName === 'SELECT' || active.tagName === 'TEXTAREA')) return;
+  if (/^[1-4]$/.test(event.key)) { event.preventDefault(); grade(unit, Number(event.key)); }
+});
+
+/* ---------- 顶栏与左栏 ---------- */
+document.querySelectorAll('[data-view]').forEach((button) => {
+  button.addEventListener('click', () => {
+    state.view = button.dataset.view;
+    document.querySelectorAll('[data-view]').forEach((item) => {
+      item.classList.toggle('active', item === button);
+      item.setAttribute('aria-selected', String(item === button));
+    });
+    $('#allTools').hidden = state.view !== 'all';
+    renderAll();
+  });
+});
+document.querySelectorAll('[data-type]').forEach((button) => {
+  button.addEventListener('click', () => {
+    state.type = button.dataset.type;
+    document.querySelectorAll('[data-type]').forEach((item) => item.classList.toggle('active', item === button));
+    renderList();
+  });
+});
+$('#search').addEventListener('input', (event) => { state.query = event.target.value; renderList(); });
+/* 排序只作用于「全部」；今日固定按 FSRS 推荐顺序 */
+$('#sort').addEventListener('change', (event) => {
+  state.sort = event.target.value;
+  if (state.view === 'today') return;
+  renderList();
+});
+$('#btnSettings').addEventListener('click', () => toast('openPreferences() → 打开插件设置'));
+$('#btnTheme').addEventListener('click', () => {
+  const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = next;
+  $('#btnTheme').textContent = next === 'light' ? '暗色' : '亮色';
+});
+
+function renderAll() {
+  /* 今日不提供排序：切换视图时隐藏排序控件 */
+  const sortEl = $('#sort');
+  if (sortEl) sortEl.hidden = state.view === 'today';
+  renderHeader();
+  renderList();
+  renderNotesPane();
+  renderReader();
+}
+
+state.selected = todayQueue()[0]?.id || state.units[0]?.id || '';
+renderAll();
+</script>
+</body>
+</html>
+
