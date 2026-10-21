@@ -7,7 +7,8 @@ Review Tab is a Zotero bootstrap plugin for revisiting academic papers and profe
 - Papers are reviewed as whole parent-item units.
 - Book-like items are split into reading-day sessions using a configurable local-day boundary (default 04:00).
 - Existing content is classified into recent New candidates or a controlled historical backlog.
-- A daily queue prioritizes due FSRS reviews, then admits a limited number of New and backlog units within the daily capacity.
+- A daily queue prioritizes due FSRS reviews, then New content, and only adds historical backlog up to a configurable low-load threshold.
+  Fresh installs default to 20 total, up to 4 New, and up to 6 backlog units only while the total remains below 15; existing saved preferences are preserved. Settings apply when the next daily queue is created; changing the learning-day boundary does not replace a new-format existing daily snapshot, sustained due/New demand can delay backlog indefinitely.
 - Main review actions are **Continue** (Good) and **Did not remember** (Again); Hard and Easy are secondary options.
 - Arbitrary review records a practice event by default and affects FSRS only after an explicit merge and rating.
 - Click a note to display it in the right pane. The annotation list displays text and comments; choose **原文** to open the annotation in Zotero's PDF reader. Image and ink previews are not currently rendered in the list.

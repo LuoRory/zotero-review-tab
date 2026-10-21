@@ -202,3 +202,49 @@ test('reload adopts resolved state and preserves cached state on malformed input
   assert.equal(reloaded.units.A.id, 'A');
   assert.equal(plugin.stateNoteBaseline.get(1), html);
 });
+
+test('daily queue passes the configured backlog limits and allows zero new items', async () => {
+  const { plugin } = pluginForNote(null, {
+    'extensions.review-tab.dailyCount': 20,
+    'extensions.review-tab.newCardLimit': 0,
+    'extensions.review-tab.backlogThreshold': 15,
+    'extensions.review-tab.backlogDailyLimit': 6,
+    'extensions.review-tab.readingDayStartHour': 4
+  });
+  plugin.queueAPI = require('../queue-policy.js');
+  const state = { units: { n: { id: 'n', parentKey: 'n', lane: 'new' }, b: { id: 'b', parentKey: 'b', lane: 'backlog' } }, dailyStats: {}, dailyQueue: null };
+  const result = await plugin.ensureDailyQueue(state, new Date('2026-10-18T12:00:00Z'), false);
+  assert.equal(result.stats.new, 0);
+  assert.equal(result.stats.backlog, 1);
+});
+
+test('an existing daily queue snapshot remains stable after settings change', async () => {
+  const { plugin } = pluginForNote(null);
+  plugin.queueAPI = require('../queue-policy.js');
+  const now = new Date('2026-10-18T12:00:00Z');
+  const dayKey = plugin.queueAPI.localDayKey(now, plugin.getBoundary());
+  const snapshot = { dayKey, items: [{ unitId: 'old', source: 'new', reviewedAt: null, rating: null, reviewLogRef: null, voidedAt: null }], stats: { due: 0, new: 1, backlog: 0 } };
+  const state = { units: {}, dailyStats: {}, dailyQueue: snapshot };
+  assert.equal(await plugin.ensureDailyQueue(state, now, false), snapshot);
+  assert.equal(state.dailyQueue.items[0].unitId, 'old');
+});
+
+test('queue snapshot keeps its original boundary if the preference changes', async () => {
+  const preferences = { 'extensions.review-tab.readingDayStartHour': 4, 'extensions.review-tab.dailyCount': 20, 'extensions.review-tab.newCardLimit': 4, 'extensions.review-tab.backlogThreshold': 15, 'extensions.review-tab.backlogDailyLimit': 6 };
+  const { plugin } = pluginForNote(null, preferences);
+  plugin.queueAPI = require('../queue-policy.js');
+  const now = new Date('2026-10-18T02:00:00');
+  const snapshot = plugin.queueAPI.buildQueue([{ id: 'new', parentKey: 'new', lane: 'new' }], now, 4, { total: 20, newMax: 4, backlogThreshold: 15, backlogMax: 6 });
+  snapshot.items = snapshot.items.map(item => ({ ...item, reviewedAt: null, rating: null, reviewLogRef: null, voidedAt: null }));
+  const state = { units: {}, dailyStats: {}, dailyQueue: snapshot };
+  preferences['extensions.review-tab.readingDayStartHour'] = 0;
+  assert.equal(await plugin.ensureDailyQueue(state, now, false), snapshot);
+  assert.equal(state.dailyQueue.boundaryHour, 4);
+});
+
+test('invalid queue preferences fall back instead of becoming zero', () => {
+  const { plugin } = pluginForNote(null, { 'extensions.review-tab.newCardLimit': '', 'extensions.review-tab.backlogThreshold': false, 'extensions.review-tab.backlogDailyLimit': '  ' });
+  assert.equal(plugin.getQueueLimit('newCardLimit', 0, 30), 4);
+  assert.equal(plugin.getQueueLimit('backlogThreshold', 0, 100), 15);
+  assert.equal(plugin.getQueueLimit('backlogDailyLimit', 0, 30), 6);
+});

@@ -29,10 +29,12 @@ var ReviewTabPlugin = {
     openOnStartup: 'extensions.review-tab.openOnStartup',
     dailyCount: 'extensions.review-tab.dailyCount',
     newCardLimit: 'extensions.review-tab.newCardLimit',
+    backlogThreshold: 'extensions.review-tab.backlogThreshold',
+    backlogDailyLimit: 'extensions.review-tab.backlogDailyLimit',
     boundary: 'extensions.review-tab.readingDayStartHour',
     firstDays: 'extensions.review-tab.firstReviewDays'
   },
-  prefDefaults: { enabled: true, openOnStartup: true, dailyCount: 20, newCardLimit: 6, boundary: 4, firstDays: 3 },
+  prefDefaults: { enabled: true, openOnStartup: true, dailyCount: 20, newCardLimit: 4, backlogThreshold: 15, backlogDailyLimit: 6, boundary: 4, firstDays: 3 },
 
   debug(message, data) { try { Zotero.debug(`[Review Tab] ${message}${data ? ` ${JSON.stringify(data)}` : ''}`); } catch (_) {} },
   report(error, context) { this.debug(`ERROR ${context}`, { message: error?.message || String(error) }); try { Zotero.logError(error); } catch (_) {} },
@@ -42,6 +44,12 @@ var ReviewTabPlugin = {
   },
   getPref(name) { const value = Zotero.Prefs.get(this.prefs[name], true); return value === undefined || value === null ? this.prefDefaults[name] : value; },
   getBoundary() { const value = Number(this.getPref('boundary')); return Number.isInteger(value) && value >= 0 && value <= 23 ? value : this.prefDefaults.boundary; },
+  getQueueLimit(name, minimum, maximum) {
+    const raw = this.getPref(name);
+    const validString = typeof raw === 'string' && /^(0|[1-9]\d*)$/.test(raw);
+    const value = typeof raw === 'number' || validString ? Number(raw) : NaN;
+    return Number.isInteger(value) && value >= minimum && value <= maximum ? value : this.prefDefaults[name];
+  },
   ensureDefaultPreferences() { for (const [name, value] of Object.entries(this.prefDefaults)) if (Zotero.Prefs.get(this.prefs[name], true) === undefined) Zotero.Prefs.set(this.prefs[name], value, true); },
 
   startup(data) {
@@ -540,18 +548,22 @@ var ReviewTabPlugin = {
   fsrsAdapter(state) { return this.fsrsAPI.createAdapter(this.FSRS, state.fsrsParameters, this.getBoundary()); },
   async ensureDailyQueue(state, now = new Date(), save = true) {
     const boundary = this.getBoundary();
-    const dayKey = this.queueAPI.localDayKey(now, boundary);
-    if (state.dailyQueue?.dayKey === dayKey) {
+    const queue = state.dailyQueue;
+    const storedBoundary = Number(queue?.boundaryHour);
+    const queueBoundary = Number.isInteger(storedBoundary) && storedBoundary >= 0 && storedBoundary <= 23 ? storedBoundary : boundary;
+    const dayKey = this.queueAPI.localDayKey(now, queueBoundary);
+    if (queue?.dayKey === dayKey) {
       let changed = false;
-      state.dailyQueue.items = state.dailyQueue.items.map(item => {
+      if (queue.boundaryHour !== queueBoundary) { queue.boundaryHour = queueBoundary; changed = true; }
+      queue.items = queue.items.map(item => {
         if (Object.hasOwn(item, 'reviewedAt')) return item;
         changed = true;
         return Object.assign({ reviewedAt: null, rating: null, reviewLogRef: null, voidedAt: null }, item);
       });
       if (changed && save) await this.saveState(Zotero.Libraries.userLibraryID, state);
-      return state.dailyQueue;
+      return queue;
     }
-    const limits = { total: Number(this.getPref('dailyCount')) || 20, newMax: Number(this.getPref('newCardLimit')) || 6, newMin: 1 };
+    const limits = { total: this.getQueueLimit('dailyCount', 1, 100), newMax: this.getQueueLimit('newCardLimit', 0, 30), backlogThreshold: this.getQueueLimit('backlogThreshold', 0, 100), backlogMax: this.getQueueLimit('backlogDailyLimit', 0, 30) };
     state.dailyQueue = this.queueAPI.buildQueue(Object.values(state.units), now, boundary, limits);
     state.dailyQueue.items = state.dailyQueue.items.map(item => Object.assign({ reviewedAt: null, rating: null, reviewLogRef: null, voidedAt: null }, item));
     state.dailyStats[dayKey] ||= { fsrsCompleted: 0, good: 0, again: 0, newAdmitted: state.dailyQueue.stats.new, backlogReleased: state.dailyQueue.stats.backlog, practice: 0 };
@@ -669,7 +681,7 @@ var ReviewTabPlugin = {
     const unit = state.units[id]; if (!unit) return;
     if (unit.sourceUnavailable) throw new Error('来源不可用，无法评分。');
     const now = new Date(); const boundary = this.getBoundary();
-    const dayKey = this.queueAPI.localDayKey(now, boundary); const queue = await this.ensureDailyQueue(state, now, false);
+    const queue = await this.ensureDailyQueue(state, now, false); const dayKey = queue.dayKey;
     const queueItem = queue.items.find(item => item.unitId === id); if (!queueItem) throw new Error('Unit is not in today\'s formal queue');
     if (queueItem.reviewedAt && !queueItem.voidedAt) throw new Error('请先撤销今天的评分，再重新评分。');
     const priorCard = unit.fsrsCard ? JSON.parse(JSON.stringify(unit.fsrsCard)) : null;
@@ -689,7 +701,7 @@ var ReviewTabPlugin = {
     await this.prepareView();
     return this.withStateOperation(Zotero.Libraries.userLibraryID, async state => {
     const now = new Date(); const boundary = this.getBoundary();
-    const dayKey = this.queueAPI.localDayKey(now, boundary); const queue = await this.ensureDailyQueue(state, now, false); const queueItem = queue.items.find(item => item.unitId === id);
+    const queue = await this.ensureDailyQueue(state, now, false); const dayKey = queue.dayKey; const queueItem = queue.items.find(item => item.unitId === id);
     const unit = state.units[id]; if (!unit || !queueItem?.reviewLogRef || !queueItem.reviewedAt || queue.dayKey !== dayKey) throw new Error('No undoable rating for this unit today');
     const log = unit.reviewLogs.find(item => item.id === queueItem.reviewLogRef); if (!log || log.voidedAt) throw new Error('The rating is no longer undoable');
     const laterActive = unit.reviewLogs.some(item => !item.voidedAt && item.id !== log.id && new Date(item.review) > new Date(log.review));
@@ -711,8 +723,8 @@ var ReviewTabPlugin = {
     await this.prepareView();
     return this.withStateOperation(Zotero.Libraries.userLibraryID, async state => {
     const unit = state.units[id]; if (!unit) return;
-    const now = new Date(); unit.practiceLogs.push({ viewedAt: now.toISOString(), note });
-    const dayKey = this.queueAPI.localDayKey(now, this.getBoundary()); const stats = state.dailyStats[dayKey] ||= { fsrsCompleted: 0, good: 0, again: 0, newAdmitted: 0, backlogReleased: 0, practice: 0 }; stats.practice += 1;
+    const now = new Date(); const queue = await this.ensureDailyQueue(state, now, false); unit.practiceLogs.push({ viewedAt: now.toISOString(), note });
+    const dayKey = queue.dayKey; const stats = state.dailyStats[dayKey] ||= { fsrsCompleted: 0, good: 0, again: 0, newAdmitted: 0, backlogReleased: 0, practice: 0 }; stats.practice += 1;
     });
   },
   async setPriority(id, priority) { return this.setUnitFlag(id, { priority }); },

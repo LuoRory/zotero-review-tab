@@ -1,5 +1,5 @@
 (function (root) {
-  const DEFAULT_LIMITS = { total: 20, newMax: 6, newMin: 1 };
+  const DEFAULT_LIMITS = { total: 20, newMax: 4, newMin: 0, backlogThreshold: 15, backlogMax: 6 };
   const PRIORITY = { low: 0, normal: 1, high: 2, core: 3 };
 
   function localDayKey(now, boundaryHour) {
@@ -48,23 +48,23 @@
     const scheduledDue = units.filter(unit => unit.lane === 'scheduled' && !unit.sourceUnavailable && !unit.paused && !unit.stopped && unit.fsrsCard && new Date(unit.fsrsCard.effectiveDueAt || unit.fsrsCard.due) <= now);
     scheduledDue.sort((a, b) => new Date(a.fsrsCard.effectiveDueAt || a.fsrsCard.due) - new Date(b.fsrsCard.effectiveDueAt || b.fsrsCard.due));
     const due = takeDiverse(scheduledDue, limits.total, selectedParents, now, true);
-    if (due.length >= limits.total) return snapshot(dayKey, now, due, [], []);
+    if (due.length >= limits.total) return snapshot(dayKey, boundaryHour, now, due, [], []);
 
     let capacity = limits.total - due.length;
     const newCandidates = units.filter(unit => unit.lane === 'new' && !unit.sourceUnavailable && !unit.paused && !unit.stopped);
     const backlogCandidates = units.filter(unit => unit.lane === 'backlog' && !unit.sourceUnavailable && !unit.paused && !unit.stopped);
-    const backlogPressure = Math.min(1, backlogCandidates.length / 100);
-    const newAllowance = Math.min(limits.newMax, Math.max(newCandidates.length && capacity ? limits.newMin : 0, Math.floor(limits.newMax * (1 - backlogPressure * 0.6))));
-    const newUnits = takeDiverse(newCandidates, Math.min(capacity, newAllowance), selectedParents, now);
+    const newUnits = takeDiverse(newCandidates, Math.min(capacity, limits.newMax), selectedParents, now);
     capacity -= newUnits.length;
-    const backlogAllowance = Math.min(capacity, Math.max(0, Math.min(4, Math.ceil(backlogPressure * 4 + capacity / 8))));
+    const baseCount = due.length + newUnits.length;
+    const backlogAllowance = Math.max(0, Math.min(limits.backlogMax ?? DEFAULT_LIMITS.backlogMax, (limits.backlogThreshold ?? DEFAULT_LIMITS.backlogThreshold) - baseCount, capacity));
     const backlogUnits = takeDiverse(backlogCandidates, backlogAllowance, selectedParents, now);
-    return snapshot(dayKey, now, due, newUnits, backlogUnits);
+    return snapshot(dayKey, boundaryHour, now, due, newUnits, backlogUnits);
   }
 
-  function snapshot(dayKey, now, due, newUnits, backlogUnits) {
+  function snapshot(dayKey, boundaryHour, now, due, newUnits, backlogUnits) {
     return {
       dayKey,
+      boundaryHour,
       createdAt: now.toISOString(),
       items: [
         ...due.map(unit => ({ unitId: unit.id, source: 'due' })),

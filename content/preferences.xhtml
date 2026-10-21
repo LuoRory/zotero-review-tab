@@ -18,7 +18,11 @@
     <label><input id="enabled" type="checkbox" /> Enable Review Tab</label>
     <label><input id="openOnStartup" type="checkbox" /> Open the Review tab whenever Zotero starts</label>
     <label>Daily formal review limit <input id="dailyCount" type="number" min="1" max="100" /></label>
-    <label>Daily New-card maximum <input id="newCardLimit" type="number" min="1" max="30" /></label>
+    <label>Daily New-card maximum <input id="newCardLimit" type="number" min="0" max="30" /></label>
+    <label>Backlog low-load threshold <input id="backlogThreshold" type="number" min="0" max="100" /></label>
+    <p class="help">After due reviews and New items, older backlog is added only until this total. Set 0 to pause backlog admission.</p>
+    <label>Daily backlog maximum <input id="backlogDailyLimit" type="number" min="0" max="30" /></label>
+    <p class="help">Maximum older backlog units admitted on a low-load day. Set 0 to pause backlog admission. Settings apply to the next daily queue; backlog may remain if due and New items reach the threshold.</p>
     <label>Local learning-day boundary <input id="readingDayStartHour" type="number" min="0" max="23" />:00</label>
   </fieldset>
   <fieldset>

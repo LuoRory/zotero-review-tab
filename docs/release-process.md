@@ -12,11 +12,13 @@ updates `manifest.json` and the generated `build-info.js` stamp.
 
 ## Validation
 
-Before a release:
+Before a release, first choose and synchronize the new version, then run `npm run build` once with a fixed `REVIEW_TAB_BUILD` value. Generate `updates.json` from that final XPI, run `npm run check`, upload the XPI, verify its downloaded SHA-256, and only then publish the matching update manifest. Do not rebuild after generating the feed.
 
 ```powershell
-npm run check
+$env:REVIEW_TAB_BUILD = 'release'
 npm run build
+node scripts/generate-update.mjs dist/zotero-review-tab-<version>.xpi > updates.json
+npm run check
 ```
 
 `npm run build` is intentionally mutating because it synchronizes generated version metadata before packaging. Run it from an intentional release state and inspect resulting changes before committing or tagging.
@@ -43,4 +45,4 @@ The manifest points to `updates.json` on the public repository default branch. E
 - Check initial scanning, a manual refresh, book reading-day boundaries, grading and undo, note display, opening annotations in the reader, and persistence after restart.
 - Test a corrupted state note on a disposable library and verify it is not overwritten.
 - Verify declared Zotero versions and target operating systems before claiming support; record actual results.
-- Inspect the archive, licenses, metadata and release notes. No update feed is currently configured.
+- Inspect the archive, licenses, metadata and release notes. Verify the public update feed only after the immutable Release asset is uploaded.
